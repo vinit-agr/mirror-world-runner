@@ -10,18 +10,18 @@ A 3D cyber-neon endless runner prototype built with **React + TypeScript + Vite 
 
 ## Prerequisites
 - Node.js 20+ (or latest LTS)
-- npm
+- pnpm (via Corepack)
 
 ## Install
 ```bash
-npm install
+pnpm install
 ```
 
 ## Run Dev Server
 Start local development server:
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 By default, Vite runs on `http://localhost:5173`.
@@ -29,25 +29,25 @@ By default, Vite runs on `http://localhost:5173`.
 To force a specific host/port:
 
 ```bash
-npm run dev -- --host 0.0.0.0 --port 5173
+pnpm dev -- --host 0.0.0.0 --port 5173
 ```
 
 ## Build Final App (Production)
 Create an optimized production build:
 
 ```bash
-npm run build
+pnpm build
 ```
 
 Build output is generated in the `dist/` folder.
 
 ## Preview Production Build Locally
 ```bash
-npm run preview
+pnpm preview
 ```
 
 ## Available Scripts
-- `npm run dev` - Start development server
-- `npm run build` - Type-check and build production bundle
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
+- `pnpm dev` - Start development server
+- `pnpm build` - Type-check and build production bundle
+- `pnpm preview` - Preview production build
+- `pnpm lint` - Run ESLint
