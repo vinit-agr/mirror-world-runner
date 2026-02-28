@@ -3,6 +3,7 @@ import { useCharacterStore } from './characterStore';
 export function ControlsHUD() {
   const currentAction = useCharacterStore((s) => s.currentAction);
   const availableActions = useCharacterStore((s) => s.availableActions);
+  const isRunning = useCharacterStore((s) => s.isRunning);
 
   return (
     <div style={{
@@ -13,51 +14,93 @@ export function ControlsHUD() {
       color: '#e0e0e0',
       fontSize: '0.85rem',
       lineHeight: 1.6,
-      background: 'rgba(0,0,0,0.6)',
+      background: 'rgba(0,0,0,0.7)',
       padding: '12px 16px',
       borderRadius: 8,
-      maxWidth: 300,
+      maxWidth: 320,
+      userSelect: 'none',
     }}>
       <div style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: 8, color: '#8080ff' }}>
-        Character Test Scene
+        Character Test
       </div>
 
+      {/* Current state */}
       <div style={{ marginBottom: 8 }}>
-        <span style={{ color: '#888' }}>Current: </span>
+        <span style={{ color: '#888' }}>Playing: </span>
         <span style={{ color: '#5f5' }}>{currentAction ?? 'none'}</span>
+        {isRunning && <span style={{ color: '#ff8', marginLeft: 8 }}>[running]</span>}
       </div>
 
-      <div style={{ marginBottom: 8 }}>
-        <span style={{ color: '#888' }}>Available animations:</span>
+      {/* Keyboard controls */}
+      <div style={{ marginBottom: 10, borderTop: '1px solid #444', paddingTop: 8 }}>
+        <div style={{ color: '#aaa', fontWeight: 'bold', marginBottom: 4 }}>Controls</div>
+        <div><Key k="Space" /> Toggle run</div>
+        <div><Key k="Up / W" /> Jump</div>
+        <div><Key k="Down / S" /> Slide</div>
+      </div>
+
+      {/* Available animations */}
+      <div style={{ borderTop: '1px solid #444', paddingTop: 8 }}>
+        <div style={{ color: '#aaa', fontWeight: 'bold', marginBottom: 4 }}>
+          Animations ({availableActions.length})
+        </div>
         {availableActions.length === 0 ? (
-          <div style={{ color: '#ff8' }}>No animations loaded yet</div>
+          <div style={{ color: '#ff8' }}>Loading...</div>
         ) : (
-          <ul style={{ margin: '4px 0', paddingLeft: 16 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {availableActions.map((name) => (
-              <li
+              <button
                 key={name}
+                onClick={() => useCharacterStore.getState().setCurrentAction(name)}
                 style={{
-                  color: name === currentAction ? '#5f5' : '#ccc',
+                  padding: '4px 10px',
+                  fontFamily: 'monospace',
+                  fontSize: '0.8rem',
+                  background: name === currentAction ? '#4040a0' : '#2a2a3e',
+                  color: name === currentAction ? '#fff' : '#ccc',
+                  border: name === currentAction ? '1px solid #6060c0' : '1px solid #444',
+                  borderRadius: 4,
                   cursor: 'pointer',
                 }}
-                onClick={() => useCharacterStore.getState().setCurrentAction(name)}
               >
                 {name}
-              </li>
+              </button>
             ))}
-          </ul>
+          </div>
         )}
       </div>
 
-      <div style={{ borderTop: '1px solid #444', paddingTop: 8, color: '#888', fontSize: '0.75rem' }}>
-        <div>Mouse drag: orbit camera</div>
-        <div>Scroll: zoom</div>
-        <div>Click animation name: play it</div>
-        <div style={{ marginTop: 4, color: '#ff8' }}>
-          Add Mixamo FBX animations to<br />
-          public/models/anims/ to use them
-        </div>
+      {/* Instructions for adding animations */}
+      <div style={{
+        marginTop: 10,
+        borderTop: '1px solid #444',
+        paddingTop: 8,
+        color: '#888',
+        fontSize: '0.7rem',
+      }}>
+        To add animations: drop FBX into<br />
+        <span style={{ color: '#aaa' }}>public/models/anims/</span> and add<br />
+        entry to <span style={{ color: '#aaa' }}>manifest.json</span>, then refresh.
       </div>
     </div>
+  );
+}
+
+function Key({ k }: { k: string }) {
+  return (
+    <span style={{
+      display: 'inline-block',
+      padding: '1px 6px',
+      background: '#333',
+      border: '1px solid #555',
+      borderRadius: 3,
+      fontSize: '0.75rem',
+      color: '#ddd',
+      marginRight: 6,
+      minWidth: 60,
+      textAlign: 'center',
+    }}>
+      {k}
+    </span>
   );
 }

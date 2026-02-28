@@ -1,56 +1,51 @@
 import { useEffect } from 'react';
 import { useCharacterStore } from './characterStore';
 
-// Map keyboard keys to animation names
-// These will be updated as the user provides Mixamo animation FBX files
-const KEY_MAP: Record<string, string> = {
-  // Will be populated once we know what animations are available
-  // Example mappings (uncomment when animations are added):
-  // 'ArrowUp': 'Run',
-  // 'ArrowDown': 'Crouch',
-  // ' ': 'Jump',
-  // 'ArrowLeft': 'Left Turn',
-  // 'ArrowRight': 'Right Turn',
-};
-
-// Default idle animation (first available, or the embedded one)
-let idleAction: string | null = null;
-
 export function useCharacterInput() {
-  const availableActions = useCharacterStore((s) => s.availableActions);
-
-  useEffect(() => {
-    // Set idle as the first available action
-    if (availableActions.length > 0 && !idleAction) {
-      idleAction = availableActions[0];
-    }
-  }, [availableActions]);
-
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const actionName = KEY_MAP[e.key];
-      if (actionName) {
-        e.preventDefault();
-        useCharacterStore.getState().setCurrentAction(actionName);
-      }
-    };
+      const store = useCharacterStore.getState();
+      const { currentAction, availableActions } = store;
 
-    const onKeyUp = (e: KeyboardEvent) => {
-      const actionName = KEY_MAP[e.key];
-      if (actionName) {
-        // Return to idle when key is released
-        const current = useCharacterStore.getState().currentAction;
-        if (current === actionName && idleAction) {
-          useCharacterStore.getState().setCurrentAction(idleAction);
+      switch (e.key) {
+        case 'ArrowUp':
+        case 'w': {
+          e.preventDefault();
+          // Jump (one-shot, returns to idle/run after)
+          if (availableActions.includes('Jump') && currentAction !== 'Jump') {
+            store.setCurrentAction('Jump');
+          }
+          break;
+        }
+
+        case 'ArrowDown':
+        case 's': {
+          e.preventDefault();
+          // Slide (one-shot, returns to idle/run after)
+          if (availableActions.includes('Slide') && currentAction !== 'Slide') {
+            store.setCurrentAction('Slide');
+          }
+          break;
+        }
+
+        case ' ': {
+          e.preventDefault();
+          // Space = toggle running
+          if (store.isRunning) {
+            // Stop running, go to idle
+            store.setRunning(false);
+            store.setCurrentAction('Idle');
+          } else {
+            // Start running
+            store.setRunning(true);
+            store.setCurrentAction('Run');
+          }
+          break;
         }
       }
     };
 
     window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
-    };
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 }
