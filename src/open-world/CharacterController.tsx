@@ -16,6 +16,7 @@ export function CharacterController() {
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
   const actionsRef = useRef<Record<string, THREE.AnimationAction>>({});
   const prevAction = useRef<string>('');
+  const oneShotPlaying = useRef<string | null>(null);
   const keys = useRef(new Set<string>());
   const [ready, setReady] = useState(false);
 
@@ -88,9 +89,57 @@ export function CharacterController() {
     return () => { mixer.stopAllAction(); };
   }, [fbx]);
 
-  // Keyboard tracking
+  // When a one-shot animation finishes, return to locomotion
   useEffect(() => {
-    const onDown = (e: KeyboardEvent) => keys.current.add(e.key.toLowerCase());
+    const mixer = mixerRef.current;
+    if (!mixer) return;
+    const onFinished = (e: { action: THREE.AnimationAction }) => {
+      const name = e.action.getClip().name;
+      if (name === oneShotPlaying.current) {
+        oneShotPlaying.current = null;
+        // Fade back to current locomotion state
+        const actions = actionsRef.current;
+        const locoAction = keys.current.size > 0 ? 'Run' : 'Idle';
+        e.action.fadeOut(0.2);
+        if (actions[locoAction]) {
+          actions[locoAction].reset().fadeIn(0.2).play();
+          prevAction.current = locoAction;
+        }
+      }
+    };
+    mixer.addEventListener('finished', onFinished);
+    return () => { mixer.removeEventListener('finished', onFinished); };
+  }, [ready]);
+
+  // Keyboard tracking + one-shot triggers
+  useEffect(() => {
+    const onDown = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      keys.current.add(key);
+
+      // One-shot animations (only trigger if not already playing one)
+      if (!oneShotPlaying.current) {
+        const actions = actionsRef.current;
+        let oneShot: string | null = null;
+
+        if (key === ' ' && actions['Jump']) {
+          oneShot = 'Jump';
+        } else if ((key === 'control' || key === 'meta') && actions['Slide']) {
+          oneShot = 'Slide';
+        }
+
+        if (oneShot) {
+          e.preventDefault();
+          oneShotPlaying.current = oneShot;
+          actions[prevAction.current]?.fadeOut(0.2);
+          const action = actions[oneShot];
+          action.reset().fadeIn(0.2).play();
+          action.setLoop(THREE.LoopOnce, 1);
+          action.clampWhenFinished = true;
+          prevAction.current = oneShot;
+        }
+      }
+    };
     const onUp = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
     window.addEventListener('keydown', onDown);
     window.addEventListener('keyup', onUp);
@@ -98,7 +147,7 @@ export function CharacterController() {
       window.removeEventListener('keydown', onDown);
       window.removeEventListener('keyup', onUp);
     };
-  }, []);
+  }, [ready]);
 
   const { camera } = useThree();
 
@@ -144,13 +193,15 @@ export function CharacterController() {
     );
     useWorldStore.getState().setMoving(isMoving);
 
-    // Switch animation
-    const actions = actionsRef.current;
-    const wantedAction = isMoving ? 'Run' : 'Idle';
-    if (wantedAction !== prevAction.current && actions[wantedAction]) {
-      actions[prevAction.current]?.fadeOut(0.2);
-      actions[wantedAction].reset().fadeIn(0.2).play();
-      prevAction.current = wantedAction;
+    // Switch animation (skip if a one-shot like Jump/Slide is playing)
+    if (!oneShotPlaying.current) {
+      const actions = actionsRef.current;
+      const wantedAction = isMoving ? 'Run' : 'Idle';
+      if (wantedAction !== prevAction.current && actions[wantedAction]) {
+        actions[prevAction.current]?.fadeOut(0.2);
+        actions[wantedAction].reset().fadeIn(0.2).play();
+        prevAction.current = wantedAction;
+      }
     }
 
     mixerRef.current.update(delta);
