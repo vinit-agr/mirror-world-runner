@@ -55,6 +55,17 @@ export function CharacterController() {
           if (anim.animations.length > 0) {
             const clip = anim.animations[0];
             clip.name = entry.name;
+            // Strip root motion position tracks (Mixamo hip bone) to prevent
+            // the character from physically translating during animation loops
+            clip.tracks = clip.tracks.filter(track => {
+              if (track.name.endsWith('.position')) {
+                const boneName = track.name.split('.')[0];
+                if (boneName.includes('Hips') || boneName.includes('Root')) {
+                  return false;
+                }
+              }
+              return true;
+            });
             actions[entry.name] = mixer.clipAction(clip);
           }
         } catch (err) {
@@ -150,7 +161,7 @@ export function CharacterController() {
 
   return (
     <group ref={groupRef} position={[0, 0, 0]}>
-      <primitive object={fbx} scale={MODEL_SCALE} rotation={[0, Math.PI, 0]} />
+      <primitive object={fbx} scale={MODEL_SCALE} />
     </group>
   );
 }
