@@ -1,40 +1,39 @@
-import { Suspense } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { CharacterScene } from './character-test/CharacterScene';
-import { ControlsHUD } from './character-test/ControlsHUD';
+import { Suspense, lazy } from 'react';
+import { useHashRoute } from './router';
+import { Home } from './Home';
 
-export default function App() {
-  return (
-    <div style={{ width: '100vw', height: '100dvh', background: '#1a1a2e' }}>
-      <Suspense fallback={<LoadingUI />}>
-        <Canvas
-          shadows
-          camera={{ position: [0, 2, 5], fov: 50 }}
-          gl={{ antialias: true }}
-          dpr={[1, 2]}
-          style={{ width: '100%', height: '100%' }}
-        >
-          <CharacterScene />
-        </Canvas>
-      </Suspense>
-      <ControlsHUD />
-    </div>
-  );
-}
+const CharacterTestPage = lazy(() => import('./character-test/CharacterTestPage'));
+const MirrorWorldRunnerPage = lazy(() => import('./game/MirrorWorldRunnerPage'));
+const OpenWorldPage = lazy(() => import('./open-world/OpenWorldPage'));
 
-function LoadingUI() {
+function LoadingFallback() {
   return (
     <div style={{
-      position: 'absolute',
-      inset: 0,
+      width: '100vw',
+      height: '100dvh',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
+      background: '#1a1a2e',
       color: '#fff',
       fontFamily: 'monospace',
       fontSize: '1.2rem',
     }}>
-      Loading character model...
+      Loading...
     </div>
+  );
+}
+
+export default function App() {
+  const route = useHashRoute();
+
+  if (route === '') return <Home />;
+
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      {route === 'character-test' && <CharacterTestPage />}
+      {route === 'mirror-world-runner' && <MirrorWorldRunnerPage />}
+      {route === 'open-world' && <OpenWorldPage />}
+    </Suspense>
   );
 }
