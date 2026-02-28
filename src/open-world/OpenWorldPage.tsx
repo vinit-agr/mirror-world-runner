@@ -39,7 +39,7 @@ export default function OpenWorldPage() {
         borderRadius: 8,
         textAlign: 'center',
       }}>
-        WASD to move | Mouse drag to orbit camera | Scroll to zoom
+        WASD to move | Space to jump | Ctrl/Cmd to slide | Mouse drag to orbit | Scroll to zoom
       </div>
     </div>
   );

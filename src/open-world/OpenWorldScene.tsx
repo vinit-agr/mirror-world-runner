@@ -1,8 +1,12 @@
+import { useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
 import { BackSide } from 'three';
 import { CharacterController } from './CharacterController';
 import { TerrainManager } from './TerrainManager';
 import { FollowCamera } from './FollowCamera';
 import { lowPolyField } from './themes/lowPolyField';
+import { useWorldStore } from './worldStore';
 import type { WorldTheme } from './themes/types';
 
 const ACTIVE_THEME: WorldTheme = lowPolyField;
@@ -33,25 +37,45 @@ function Mountains() {
   return <>{mountains}</>;
 }
 
+function SunLight({ theme }: { theme: WorldTheme }) {
+  const lightRef = useRef<THREE.DirectionalLight>(null!);
+  const sunOffset = theme.lighting.sunPosition;
+
+  useFrame(() => {
+    const { playerX, playerZ } = useWorldStore.getState();
+    lightRef.current.position.set(
+      playerX + sunOffset[0],
+      sunOffset[1],
+      playerZ + sunOffset[2],
+    );
+    lightRef.current.target.position.set(playerX, 0, playerZ);
+    lightRef.current.target.updateMatrixWorld();
+  });
+
+  return (
+    <directionalLight
+      ref={lightRef}
+      intensity={theme.lighting.sunIntensity}
+      color={theme.lighting.sunColor}
+      castShadow
+      shadow-mapSize-width={2048}
+      shadow-mapSize-height={2048}
+      shadow-camera-far={80}
+      shadow-camera-left={-20}
+      shadow-camera-right={20}
+      shadow-camera-top={20}
+      shadow-camera-bottom={-20}
+    />
+  );
+}
+
 export function OpenWorldScene() {
   const theme = ACTIVE_THEME;
   return (
     <>
       <SkyDome theme={theme} />
       <ambientLight intensity={theme.lighting.ambientIntensity} />
-      <directionalLight
-        position={theme.lighting.sunPosition}
-        intensity={theme.lighting.sunIntensity}
-        color={theme.lighting.sunColor}
-        castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-camera-far={80}
-        shadow-camera-left={-40}
-        shadow-camera-right={40}
-        shadow-camera-top={40}
-        shadow-camera-bottom={-40}
-      />
+      <SunLight theme={theme} />
       <fog attach="fog" args={[theme.fog.color, theme.fog.near, theme.fog.far]} />
       <Mountains />
       <TerrainManager theme={theme} />
