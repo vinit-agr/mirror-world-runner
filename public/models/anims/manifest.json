@@ -3,6 +3,7 @@
     { "name": "Idle", "file": "stand_idle.fbx" },
     { "name": "Run", "file": "run.fbx" },
     { "name": "Jump", "file": "jump.fbx" },
-    { "name": "Slide", "file": "slide.fbx" }
+    { "name": "Slide", "file": "slide.fbx" },
+    { "name": "Jog", "file": "jog_in_circle.fbx" }
   ]
 }
