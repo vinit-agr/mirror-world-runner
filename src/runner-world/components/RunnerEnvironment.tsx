@@ -27,6 +27,9 @@ export function RunnerEnvironment() {
   );
 }
 
+// Number of tiles to place behind the camera to cover bottom-of-screen view
+const GROUND_BEHIND = 5;
+
 function Ground({ theme }: { theme: typeof URBAN_THEME }) {
   const ref = useRef<InstancedMesh>(null!);
   const count = RUNNER.tileCount;
@@ -35,10 +38,17 @@ function Ground({ theme }: { theme: typeof URBAN_THEME }) {
 
   useFrame(() => {
     const { distance } = useRunnerStore.getState();
-    const offset = distance % RUNNER.tileLength;
+    const totalLen = count * RUNNER.tileLength;
+    // Each tile wraps individually: compute its base Z, then wrap into the
+    // visible window [-totalLen + GROUND_BEHIND * tileLength, GROUND_BEHIND * tileLength]
+    const behindZ = GROUND_BEHIND * RUNNER.tileLength;
 
     for (let i = 0; i < count; i++) {
-      const z = -i * RUNNER.tileLength + offset;
+      // Raw position that scrolls with distance
+      let z = (-i * RUNNER.tileLength) + (distance % totalLen);
+      // Wrap individual tile: keep within [-totalLen + behindZ, behindZ]
+      if (z > behindZ) z -= totalLen;
+      if (z < -totalLen + behindZ) z += totalLen;
       dummy.position.set(0, -0.05, z);
       dummy.updateMatrix();
       ref.current.setMatrixAt(i, dummy.matrix);
@@ -60,21 +70,27 @@ function Ground({ theme }: { theme: typeof URBAN_THEME }) {
   );
 }
 
+const LANE_MARKER_BEHIND = 3;
+
 function LaneMarkers({ theme }: { theme: typeof URBAN_THEME }) {
   const ref = useRef<InstancedMesh>(null!);
   const markerPositionsX = [-1, 1];
   const stripeCount = 20;
   const totalCount = markerPositionsX.length * stripeCount;
   const dummy = useMemo(() => new Object3D(), []);
+  const stripeSpacing = 4;
+  const totalLen = stripeCount * stripeSpacing;
+  const behindZ = LANE_MARKER_BEHIND * stripeSpacing;
 
   useFrame(() => {
     const { distance } = useRunnerStore.getState();
-    const offset = distance % 4;
     let idx = 0;
 
     for (const mx of markerPositionsX) {
       for (let i = 0; i < stripeCount; i++) {
-        const z = -i * 4 + offset;
+        let z = -i * stripeSpacing + (distance % totalLen);
+        if (z > behindZ) z -= totalLen;
+        if (z < -totalLen + behindZ) z += totalLen;
         dummy.position.set(mx, 0.01, z);
         dummy.updateMatrix();
         ref.current.setMatrixAt(idx, dummy.matrix);
@@ -96,21 +112,26 @@ function LaneMarkers({ theme }: { theme: typeof URBAN_THEME }) {
   );
 }
 
+const RAIL_BEHIND = 3;
+
 function Rails({ theme }: { theme: typeof URBAN_THEME }) {
   const ref = useRef<InstancedMesh>(null!);
   const railPositionsX = [-3, 3];
   const segmentCount = 24;
   const totalCount = railPositionsX.length * segmentCount;
   const dummy = useMemo(() => new Object3D(), []);
+  const totalLen = segmentCount * RUNNER.tileLength;
+  const behindZ = RAIL_BEHIND * RUNNER.tileLength;
 
   useFrame(() => {
     const { distance } = useRunnerStore.getState();
-    const offset = distance % RUNNER.tileLength;
     let idx = 0;
 
     for (const rx of railPositionsX) {
       for (let i = 0; i < segmentCount; i++) {
-        const z = -i * RUNNER.tileLength + offset;
+        let z = -i * RUNNER.tileLength + (distance % totalLen);
+        if (z > behindZ) z -= totalLen;
+        if (z < -totalLen + behindZ) z += totalLen;
         dummy.position.set(rx, 0.05, z);
         dummy.updateMatrix();
         ref.current.setMatrixAt(idx, dummy.matrix);
@@ -127,6 +148,8 @@ function Rails({ theme }: { theme: typeof URBAN_THEME }) {
     </instancedMesh>
   );
 }
+
+const BUILDING_BEHIND = 3;
 
 function Buildings({ theme }: { theme: typeof URBAN_THEME }) {
   const leftRef = useRef<InstancedMesh>(null!);
@@ -146,15 +169,19 @@ function Buildings({ theme }: { theme: typeof URBAN_THEME }) {
     return data;
   }, [count, theme]);
 
+  const spacing = RUNNER.buildingDepth + 1.0;
+  const totalLen = count * spacing;
+  const behindZ = BUILDING_BEHIND * spacing;
+
   useFrame(() => {
     const { distance } = useRunnerStore.getState();
-    const spacing = RUNNER.buildingDepth + 1.0;
-    const totalLen = count * spacing;
-    const offset = distance % totalLen;
 
     for (let i = 0; i < count; i++) {
       const { height } = buildingData[i];
-      const z = -i * spacing + offset;
+      // Individual wrapping: each building recycles from behind camera to far end
+      let z = -i * spacing + (distance % totalLen);
+      if (z > behindZ) z -= totalLen;
+      if (z < -totalLen + behindZ) z += totalLen;
 
       dummy.position.set(-RUNNER.buildingOffsetX, height / 2, z);
       dummy.scale.set(RUNNER.buildingWidth, height, RUNNER.buildingDepth);
