@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 
-export type Route = '' | 'character-test' | 'open-world' | 'mirror-world-runner' | 'runner-world';
+export type Route = '' | 'model-test' | 'open-world' | 'mirror-world-runner' | 'runner-world';
 
 function parseHash(): Route {
   const hash = window.location.hash.replace('#/', '').replace('#', '');
-  const valid: Route[] = ['character-test', 'open-world', 'mirror-world-runner', 'runner-world'];
+  const valid: Route[] = ['model-test', 'open-world', 'mirror-world-runner', 'runner-world'];
   return valid.includes(hash as Route) ? (hash as Route) : '';
 }
 

@@ -1,3 +1,26 @@
+export type ObstacleModelDef = {
+  name: string;
+  file: string;
+};
+
+/** Street obstacle models used in the runner world. */
+export const OBSTACLE_MODELS: ObstacleModelDef[] = [
+  { name: 'Barrel', file: 'barrel.glb' },
+  { name: 'Bin', file: 'bin.glb' },
+  { name: 'Cone', file: 'cone.glb' },
+  { name: 'Fire Hydrant', file: 'hydrant.glb' },
+  { name: 'Concrete Barrier', file: 'concrete-barrier.glb' },
+  { name: 'Red Barrier', file: 'red-barrier.glb' },
+  { name: 'Metal Barrier 1', file: 'metal-barrier1.glb' },
+  { name: 'Metal Barrier 2', file: 'metal-barrier2.glb' },
+  { name: 'Metal Barrier Damaged 1', file: 'metal-barrier-damaged1.glb' },
+  { name: 'Metal Barrier Damaged 2', file: 'metal-barrier-damaged2.glb' },
+  { name: 'Stop Sign', file: 'stop.glb' },
+  { name: 'Warning Sign', file: 'warning.glb' },
+  { name: 'Give Way Sign', file: 'give-way.glb' },
+  { name: 'No Waiting Sign', file: 'no-waiting.glb' },
+];
+
 export const RUNNER = {
   // Lanes
   laneCount: 3,
@@ -21,11 +44,7 @@ export const RUNNER = {
   obstacleStartZ: -100,           // spawn distance ahead
   obstacleDespawnZ: 10,           // remove after passing
   obstaclePoolSize: 30,
-
-  // Obstacle dimensions [width, height, depth]
-  obstacleBarrier: [1.0, 1.2, 0.4] as [number, number, number],
-  obstacleLow:     [1.2, 0.5, 0.5] as [number, number, number],
-  obstacleTall:    [0.8, 2.0, 0.4] as [number, number, number],
+  obstacleScale: 0.5,             // GLB model scale (fits well with characters)
 
   // World tiles
   tileLength: 4,
@@ -40,6 +59,6 @@ export const RUNNER = {
   buildingOffsetX: 5.5,      // distance from center
 
   // Camera
-  cameraOffset: [0, 3.5, 7] as [number, number, number],
+  cameraOffset: [0, 2, 2] as [number, number, number],
   cameraLookAt: [0, 1, -15] as [number, number, number],
 } as const;

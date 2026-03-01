@@ -1,0 +1,38 @@
+import { Suspense } from 'react';
+import { Canvas } from '@react-three/fiber';
+import { ModelTestScene } from './ModelTestScene';
+import { ModelTestHUD } from './ModelTestHUD';
+import { BackButton } from '../BackButton';
+
+export default function ModelTestPage() {
+  return (
+    <div style={{ width: '100vw', height: '100dvh', background: '#1a1a2e' }}>
+      <Suspense fallback={
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#fff',
+          fontFamily: 'monospace',
+          fontSize: '1.2rem',
+        }}>
+          Loading model...
+        </div>
+      }>
+        <Canvas
+          shadows
+          camera={{ position: [0, 2, 5], fov: 50 }}
+          gl={{ antialias: true }}
+          dpr={[1, 2]}
+          style={{ width: '100%', height: '100%' }}
+        >
+          <ModelTestScene />
+        </Canvas>
+      </Suspense>
+      <ModelTestHUD />
+      <BackButton />
+    </div>
+  );
+}

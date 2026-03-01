@@ -4,7 +4,6 @@ export type RunnerWorldTheme = {
   buildings: { colors: string[]; emissive: string };
   rails: { color: string };
   lanes: { color: string; opacity: number };
-  obstacles: Record<'barrier' | 'low' | 'tall', { color: string; emissive: string }>;
   sky: { color: string };
   fog: { color: string; near: number; far: number };
   lighting: {
@@ -22,11 +21,6 @@ export const URBAN_THEME: RunnerWorldTheme = {
   },
   rails: { color: '#888888' },
   lanes: { color: '#ffffff', opacity: 0.15 },
-  obstacles: {
-    barrier: { color: '#cc4444', emissive: '#661111' },
-    low:     { color: '#ccaa22', emissive: '#665511' },
-    tall:    { color: '#4444cc', emissive: '#111166' },
-  },
   sky: { color: '#87ceeb' },
   fog: { color: '#c8d8e8', near: 30, far: 100 },
   lighting: {

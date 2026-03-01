@@ -1,35 +1,53 @@
-import { useRunnerStore, type RunnerObstacle } from '../core/RunnerState';
-import { useRunnerObstacleSystem, getObstacleHalfExtents } from '../systems/RunnerObstacleSystem';
-import { RUNNER } from '../config/RunnerConfig';
-import { URBAN_THEME } from '../config/RunnerTheme';
-import * as THREE from 'three';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
+import { useRunnerStore, type RunnerObstacle } from '../core/RunnerState';
+import {
+  useRunnerObstacleSystem,
+  getObstacleHalfExtents,
+  cloneObstacleModel,
+  preloadObstacleModels,
+} from '../systems/RunnerObstacleSystem';
+import { RUNNER } from '../config/RunnerConfig';
+
+// ── Single obstacle rendered from preloaded GLB ──────────────────────────
 
 function ObstacleMesh({ obs }: { obs: RunnerObstacle }) {
-  const theme = URBAN_THEME;
-  const dims = obs.variant === 'barrier' ? RUNNER.obstacleBarrier
-    : obs.variant === 'low' ? RUNNER.obstacleLow
-    : RUNNER.obstacleTall;
-  const [sx, sy, sz] = dims;
-  const style = theme.obstacles[obs.variant];
+  const groupRef = useRef<THREE.Group>(null!);
+  const modelRef = useRef<THREE.Group | null>(null);
+  const loadedVariant = useRef('');
 
   const x = RUNNER.lanePositions[obs.lane];
-  const y = sy / 2; // Sitting on ground
 
-  return (
-    <mesh position={[x, y, obs.z]}>
-      <boxGeometry args={[sx, sy, sz]} />
-      <meshStandardMaterial
-        color={style.color}
-        emissive={style.emissive}
-        emissiveIntensity={0.3}
-        metalness={0.3}
-        roughness={0.7}
-      />
-    </mesh>
-  );
+  useEffect(() => {
+    if (!groupRef.current || loadedVariant.current === obs.variant) return;
+
+    // Remove previous clone
+    if (modelRef.current) {
+      groupRef.current.remove(modelRef.current);
+      modelRef.current = null;
+    }
+
+    const cloned = cloneObstacleModel(obs.variant);
+    if (cloned) {
+      cloned.scale.setScalar(RUNNER.obstacleScale);
+      groupRef.current.add(cloned);
+      modelRef.current = cloned;
+      loadedVariant.current = obs.variant;
+    }
+  }, [obs.variant]);
+
+  // Update position each frame (z changes every frame as obstacles move)
+  useFrame(() => {
+    if (groupRef.current) {
+      groupRef.current.position.set(x, 0, obs.z);
+    }
+  });
+
+  return <group ref={groupRef} position={[x, 0, obs.z]} />;
 }
+
+// ── Debug wireframe for collision box ────────────────────────────────────
 
 function DebugWireframe({ obs, isColliding }: { obs: RunnerObstacle; isColliding: boolean }) {
   const [hx, hy, hz] = getObstacleHalfExtents(obs.variant);
@@ -45,6 +63,8 @@ function DebugWireframe({ obs, isColliding }: { obs: RunnerObstacle; isColliding
     </lineSegments>
   );
 }
+
+// ── Player debug wireframe (unchanged) ───────────────────────────────────
 
 export function PlayerDebugWireframe({ playerXRef, playerYRef }: {
   playerXRef: React.RefObject<number>;
@@ -77,12 +97,23 @@ export function PlayerDebugWireframe({ playerXRef, playerYRef }: {
   );
 }
 
+// ── Main obstacles container ─────────────────────────────────────────────
+
 export function RunnerObstacles() {
+  const [ready, setReady] = useState(false);
+
+  // Kick off model preloading on mount
+  useEffect(() => {
+    preloadObstacleModels().then(() => setReady(true));
+  }, []);
+
   useRunnerObstacleSystem();
 
   const obstacles = useRunnerStore((s) => s.obstacles);
   const showHitboxes = useRunnerStore((s) => s.showHitboxes);
   const collidingIds = useRunnerStore((s) => s.collidingObstacleIds);
+
+  if (!ready) return null;
 
   return (
     <>

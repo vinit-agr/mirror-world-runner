@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Street Asset Pack Preview</title>
+  <style>
+    body { margin: 0; background: #1a1a2e; font-family: monospace; color: #fff; }
+    #info { position: fixed; top: 10px; left: 10px; z-index: 10; background: rgba(0,0,0,0.7); padding: 12px; border-radius: 8px; }
+    #info select { font-family: monospace; background: #2a2a3e; color: #fff; border: 1px solid #555; padding: 4px 8px; border-radius: 4px; }
+    #info .label { font-size: 0.8rem; color: #aaa; margin-bottom: 4px; }
+    #info .name { font-size: 1.1rem; font-weight: bold; margin: 8px 0; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <div id="info">
+    <div class="label">Street Asset Pack Preview</div>
+    <select id="modelSelect"></select>
+    <div class="name" id="modelName">Loading...</div>
+    <div id="modelSize" style="font-size:0.75rem; color:#888;"></div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "/node_modules/.pnpm/three@0.183.1/node_modules/three/build/three.module.js",
+      "three/examples/jsm/": "/node_modules/.pnpm/three@0.183.1/node_modules/three/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+    import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+
+    const MODELS = [
+      { name: 'Barrel', file: 'barrel.glb' },
+      { name: 'Bin (Trash Can)', file: 'bin.glb' },
+      { name: 'Cone', file: 'cone.glb' },
+      { name: 'Fire Hydrant', file: 'hydrant.glb' },
+      { name: 'Concrete Barrier', file: 'concrete-barrier.glb' },
+      { name: 'Red Barrier', file: 'red-barrier.glb' },
+      { name: 'Metal Barrier 1', file: 'metal-barrier1.glb' },
+      { name: 'Metal Barrier 2', file: 'metal-barrier2.glb' },
+      { name: 'Metal Barrier Damaged 1', file: 'metal-barrier-damaged1.glb' },
+      { name: 'Metal Barrier Damaged 2', file: 'metal-barrier-damaged2.glb' },
+      { name: 'Cardboard Box', file: 'cardboard-box.glb' },
+      { name: 'Cardboard Box 2', file: 'cube-001.glb' },
+      { name: 'Stop Sign', file: 'stop.glb' },
+      { name: 'Warning Sign', file: 'warning.glb' },
+      { name: 'Give Way Sign', file: 'give-way.glb' },
+      { name: 'No Waiting Sign', file: 'no-waiting.glb' },
+      { name: 'Trash Bag', file: 'trashbag.glb' },
+      { name: 'Trash Bag 2', file: 'trashbag2.glb' },
+      { name: 'Pole 1', file: 'pole-1.glb' },
+      { name: 'Pole 2', file: 'pole-2.glb' },
+    ];
+
+    // Scene setup
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#1a1a2e');
+
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(3, 3, 3);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    // Lighting
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    dirLight.position.set(5, 8, 5);
+    scene.add(dirLight);
+    const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.3);
+    dirLight2.position.set(-3, 4, -3);
+    scene.add(dirLight2);
+
+    // Ground grid
+    const grid = new THREE.GridHelper(10, 20, 0x444444, 0x333333);
+    scene.add(grid);
+
+    // Populate dropdown
+    const select = document.getElementById('modelSelect');
+    for (const m of MODELS) {
+      const opt = document.createElement('option');
+      opt.value = m.file;
+      opt.textContent = m.name;
+      select.appendChild(opt);
+    }
+
+    const loader = new GLTFLoader();
+    let currentModel = null;
+
+    function loadModel(file) {
+      if (currentModel) {
+        scene.remove(currentModel);
+        currentModel = null;
+      }
+
+      document.getElementById('modelName').textContent = 'Loading...';
+      document.getElementById('modelSize').textContent = '';
+
+      const url = `/models/obstacles/street/${file}`;
+      loader.load(url, (gltf) => {
+        const model = gltf.scene;
+
+        // Auto-center and scale
+        const box = new THREE.Box3().setFromObject(model);
+        const size = new THREE.Vector3();
+        const center = new THREE.Vector3();
+        box.getSize(size);
+        box.getCenter(center);
+
+        // Move model so it sits on the ground, centered
+        model.position.sub(center);
+        model.position.y += size.y / 2;
+
+        // Scale to fit ~2 units
+        const maxDim = Math.max(size.x, size.y, size.z);
+        if (maxDim > 3) {
+          const s = 3 / maxDim;
+          model.scale.set(s, s, s);
+        }
+
+        scene.add(model);
+        currentModel = model;
+
+        const entry = MODELS.find(m => m.file === file);
+        document.getElementById('modelName').textContent = entry?.name || file;
+        document.getElementById('modelSize').textContent =
+          `${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)} (raw units)`;
+
+        // Reset camera
+        controls.target.set(0, size.y / 4, 0);
+        controls.update();
+      }, undefined, (err) => {
+        document.getElementById('modelName').textContent = 'Error loading model';
+        console.error(err);
+      });
+    }
+
+    select.addEventListener('change', () => loadModel(select.value));
+    loadModel(MODELS[0].file);
+
+    // Animation loop
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>

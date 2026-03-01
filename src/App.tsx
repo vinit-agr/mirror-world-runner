@@ -2,7 +2,7 @@ import { Suspense, lazy } from 'react';
 import { useHashRoute } from './router';
 import { Home } from './Home';
 
-const CharacterTestPage = lazy(() => import('./character-test/CharacterTestPage'));
+const ModelTestPage = lazy(() => import('./character-test/ModelTestPage'));
 const MirrorWorldRunnerPage = lazy(() => import('./game/MirrorWorldRunnerPage'));
 const OpenWorldPage = lazy(() => import('./open-world/OpenWorldPage'));
 const RunnerWorldPage = lazy(() => import('./runner-world/RunnerWorldPage'));
@@ -32,7 +32,7 @@ export default function App() {
 
   return (
     <Suspense fallback={<LoadingFallback />}>
-      {route === 'character-test' && <CharacterTestPage />}
+      {route === 'model-test' && <ModelTestPage />}
       {route === 'mirror-world-runner' && <MirrorWorldRunnerPage />}
       {route === 'open-world' && <OpenWorldPage />}
       {route === 'runner-world' && <RunnerWorldPage />}

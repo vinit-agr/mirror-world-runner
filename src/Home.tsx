@@ -10,9 +10,9 @@ interface ExperimentCard {
 
 const experiments: ExperimentCard[] = [
   {
-    title: 'Character Test',
-    description: 'Test Mixamo character animations in isolation',
-    route: 'character-test',
+    title: 'Model Test',
+    description: 'Test characters, obstacles, and other 3D models',
+    route: 'model-test',
     color: '#4040a0',
   },
   {

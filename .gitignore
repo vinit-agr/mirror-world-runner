@@ -18,6 +18,40 @@ dist-ssr
 .idea
 .DS_Store
 *.suo
+
+# Ignore all model assets by default (large binaries)
+public/models/**/*.fbx
+public/models/**/*.glb
+
+# Whitelist specific character models
+!public/models/characters/default.fbx
+!public/models/characters/Amy.fbx
+!public/models/characters/Maria J J Ong.fbx
+
+# Whitelist specific animation files
+!public/models/anims/Idle.fbx
+!public/models/anims/Jump.fbx
+!public/models/anims/Run.fbx
+!public/models/anims/Slide.fbx
+!public/models/anims/Walking.fbx
+
+# Whitelist street obstacle models used in runner world
+# (re-ignore all GLBs in street/, then whitelist the 14 used in runner world)
+public/models/obstacles/street/*.glb
+!public/models/obstacles/street/barrel.glb
+!public/models/obstacles/street/bin.glb
+!public/models/obstacles/street/cone.glb
+!public/models/obstacles/street/hydrant.glb
+!public/models/obstacles/street/concrete-barrier.glb
+!public/models/obstacles/street/red-barrier.glb
+!public/models/obstacles/street/metal-barrier1.glb
+!public/models/obstacles/street/metal-barrier2.glb
+!public/models/obstacles/street/metal-barrier-damaged1.glb
+!public/models/obstacles/street/metal-barrier-damaged2.glb
+!public/models/obstacles/street/stop.glb
+!public/models/obstacles/street/warning.glb
+!public/models/obstacles/street/give-way.glb
+!public/models/obstacles/street/no-waiting.glb
 *.ntvs*
 *.njsproj
 *.sln
