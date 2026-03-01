@@ -59,6 +59,6 @@ export const RUNNER = {
   buildingOffsetX: 5.5,      // distance from center
 
   // Camera
-  cameraOffset: [0, 2, 2] as [number, number, number],
+  cameraOffset: [0, 2, 3.5] as [number, number, number],
   cameraLookAt: [0, 1, -15] as [number, number, number],
 } as const;
