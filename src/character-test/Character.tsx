@@ -17,6 +17,7 @@ export function Character() {
   const actionsRef = useRef<Record<string, THREE.AnimationAction>>({});
   const prevAction = useRef<string | null>(null);
   const loadedCharFile = useRef<string>('');
+  const groundOffsetsRef = useRef<Record<string, number>>({});
 
   // Load character manifest on mount
   useEffect(() => {
@@ -43,6 +44,7 @@ export function Character() {
     }
     actionsRef.current = {};
     prevAction.current = null;
+    groundOffsetsRef.current = {};
 
     if (modelRef.current) {
       groupRef.current.remove(modelRef.current);
@@ -77,13 +79,11 @@ export function Character() {
     });
 
     // NOTE: Do NOT scale, rotate, or add to scene yet.
-    // Scale must be applied AFTER computing ground offset because
+    // Scale must be applied AFTER computing ground offsets because
     // FBXLoader computes skeleton boneInverses at the original scale.
     // Adding to scene last prevents a T-pose flash while anims load.
 
     // Detect the character's Mixamo bone prefix.
-    // Animations use "mixamorigHips" etc. but some characters use
-    // "mixamorig7Hips", "mixamorig1Hips", etc.
     let charBonePrefix = '';
     fbx.traverse((child) => {
       if (charBonePrefix) return;
@@ -98,7 +98,6 @@ export function Character() {
         }
       }
     });
-    console.log(`[Character] "${charFile}" bone prefix: "${charBonePrefix}"`);
 
     // Set up mixer and load animations
     const mixer = new THREE.AnimationMixer(fbx);
@@ -139,8 +138,23 @@ export function Character() {
     const names = Object.keys(actions);
     useCharacterStore.getState().setAvailableActions(names);
 
-    // Play default animation at full weight so the skeleton is in the
-    // actual pose (not bind/T-pose) when we sample vertices for grounding.
+    // Compute per-animation ground offsets at original FBX scale.
+    // Each animation positions the skeleton differently, so the lowest
+    // vertex Y varies. We sample frame 0 of each animation to find
+    // the correct ground offset for that pose.
+    const groundOffsets: Record<string, number> = {};
+    for (const [name, action] of Object.entries(actions)) {
+      mixer.stopAllAction();
+      action.reset().play();
+      action.setEffectiveWeight(1);
+      mixer.update(0);
+      fbx.updateMatrixWorld(true);
+      groundOffsets[name] = getSkinnedMinY(fbx);
+    }
+    groundOffsetsRef.current = groundOffsets;
+
+    // Restart default animation for the initial pose
+    mixer.stopAllAction();
     const defaultAnim = names.includes('Idle') ? 'Idle' : names[0];
     if (defaultAnim && actions[defaultAnim]) {
       const action = actions[defaultAnim];
@@ -149,19 +163,14 @@ export function Character() {
       useCharacterStore.getState().setCurrentAction(defaultAnim);
       prevAction.current = defaultAnim;
     }
-
-    // Compute ground offset at original FBX scale (no MODEL_SCALE yet).
-    // This keeps bone world-matrices consistent with the boneInverses
-    // that FBXLoader computed at load time, so applyBoneTransform works.
     mixer.update(0);
-    fbx.updateMatrixWorld(true);
-    const minY = getSkinnedMinY(fbx);
 
-    // Now apply scale, rotation, ground offset, and add to scene in one go
+    // Apply scale, rotation, ground offset, and add to scene in one go
     // so the user never sees T-pose or floating characters.
+    const defaultOffset = groundOffsets[defaultAnim] ?? 0;
     fbx.scale.set(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
     fbx.rotation.set(0, Math.PI, 0);
-    fbx.position.y = -minY * MODEL_SCALE;
+    fbx.position.y = -defaultOffset * MODEL_SCALE;
     groupRef.current.add(fbx);
     modelRef.current = fbx;
     loadedCharFile.current = charFile;
@@ -203,6 +212,11 @@ export function Character() {
         } else {
           action.reset().fadeIn(0.2).play();
         }
+      }
+      // Update ground offset for the new animation
+      if (modelRef.current && currentAction) {
+        const offset = groundOffsetsRef.current[currentAction] ?? 0;
+        modelRef.current.position.y = -offset * MODEL_SCALE;
       }
       prevAction.current = currentAction;
     }

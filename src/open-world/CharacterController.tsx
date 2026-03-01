@@ -21,6 +21,7 @@ export function CharacterController() {
   const oneShotPlaying = useRef<string | null>(null);
   const keys = useRef(new Set<string>());
   const loadedCharFile = useRef<string>('');
+  const groundOffsetsRef = useRef<Record<string, number>>({});
 
   const { camera } = useThree();
 
@@ -50,6 +51,7 @@ export function CharacterController() {
     actionsRef.current = {};
     prevAction.current = '';
     oneShotPlaying.current = null;
+    groundOffsetsRef.current = {};
 
     if (modelRef.current) {
       groupRef.current.remove(modelRef.current);
@@ -85,9 +87,8 @@ export function CharacterController() {
     });
 
     // NOTE: Do NOT scale or add to scene yet.
-    // Scale must be applied AFTER computing ground offset because
+    // Scale must be applied AFTER computing ground offsets because
     // FBXLoader computes skeleton boneInverses at the original scale.
-    // Scaling first would cause a matrix mismatch in applyBoneTransform.
     // Adding to scene last prevents a T-pose flash while anims load.
 
     // Detect the character's Mixamo bone prefix.
@@ -161,26 +162,36 @@ export function CharacterController() {
 
     actionsRef.current = actions;
 
-    // Play Idle at full weight so the skeleton is in the actual pose
-    // (not bind/T-pose) when we sample vertex positions for grounding.
+    // Compute per-animation ground offsets at original FBX scale.
+    // Each animation positions the skeleton differently, so the lowest
+    // vertex Y varies. We sample frame 0 of each animation to find
+    // the correct ground offset for that pose.
+    const groundOffsets: Record<string, number> = {};
+    for (const [name, action] of Object.entries(actions)) {
+      mixer.stopAllAction();
+      action.reset().play();
+      action.setEffectiveWeight(1);
+      mixer.update(0);
+      fbx.updateMatrixWorld(true);
+      groundOffsets[name] = getSkinnedMinY(fbx);
+    }
+    groundOffsetsRef.current = groundOffsets;
+
+    // Restart Idle for the initial pose
+    mixer.stopAllAction();
     if (actions['Idle']) {
       const idle = actions['Idle'];
       idle.reset().play();
       idle.setEffectiveWeight(1);
       prevAction.current = 'Idle';
     }
-
-    // Compute ground offset at original FBX scale (no MODEL_SCALE yet).
-    // This keeps bone world-matrices consistent with the boneInverses
-    // that FBXLoader computed at load time, so applyBoneTransform works.
     mixer.update(0);
-    fbx.updateMatrixWorld(true);
-    const minY = getSkinnedMinY(fbx);
 
-    // Now apply scale, ground offset, and add to scene in one go
+    // Apply scale, ground offset, and add to scene in one go
     // so the user never sees T-pose or floating characters.
+    const idleOffset = groundOffsets['Idle'] ?? 0;
     fbx.scale.set(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
-    fbx.position.y = -minY * MODEL_SCALE;
+    fbx.position.y = -idleOffset * MODEL_SCALE;
     groupRef.current.add(fbx);
     modelRef.current = fbx;
     loadedCharFile.current = charFile;
@@ -195,6 +206,11 @@ export function CharacterController() {
         if (actions[locoAction]) {
           actions[locoAction].reset().fadeIn(0.2).play();
           prevAction.current = locoAction;
+        }
+        // Update ground offset for the return animation
+        if (modelRef.current) {
+          const offset = groundOffsetsRef.current[locoAction] ?? 0;
+          modelRef.current.position.y = -offset * MODEL_SCALE;
         }
       }
     });
@@ -231,6 +247,11 @@ export function CharacterController() {
           action.setLoop(THREE.LoopOnce, 1);
           action.clampWhenFinished = true;
           prevAction.current = oneShot;
+          // Update ground offset for the one-shot animation
+          if (modelRef.current) {
+            const offset = groundOffsetsRef.current[oneShot] ?? 0;
+            modelRef.current.position.y = -offset * MODEL_SCALE;
+          }
         }
       }
     };
@@ -290,6 +311,11 @@ export function CharacterController() {
         actions[prevAction.current]?.fadeOut(0.2);
         actions[wantedAction].reset().fadeIn(0.2).play();
         prevAction.current = wantedAction;
+        // Update ground offset for the new animation
+        if (modelRef.current) {
+          const offset = groundOffsetsRef.current[wantedAction] ?? 0;
+          modelRef.current.position.y = -offset * MODEL_SCALE;
+        }
       }
     }
 
