@@ -11,8 +11,10 @@ type CharacterState = {
   setCurrentAction: (name: string | null) => void;
   setAvailableActions: (names: string[]) => void;
   setRunning: (v: boolean) => void;
+  loadError: string | null;
   setAvailableCharacters: (chars: CharacterEntry[]) => void;
   setSelectedCharacter: (file: string) => void;
+  setLoadError: (err: string | null) => void;
 };
 
 export const useCharacterStore = create<CharacterState>((set) => ({
@@ -21,9 +23,11 @@ export const useCharacterStore = create<CharacterState>((set) => ({
   isRunning: false,
   availableCharacters: [],
   selectedCharacter: 'default.fbx',
+  loadError: null,
   setCurrentAction: (name) => set({ currentAction: name }),
   setAvailableActions: (names) => set({ availableActions: names }),
   setRunning: (v) => set({ isRunning: v }),
   setAvailableCharacters: (chars) => set({ availableCharacters: chars }),
-  setSelectedCharacter: (file) => set({ selectedCharacter: file }),
+  setSelectedCharacter: (file) => set({ selectedCharacter: file, loadError: null }),
+  setLoadError: (err) => set({ loadError: err }),
 }));

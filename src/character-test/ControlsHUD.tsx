@@ -6,6 +6,7 @@ export function ControlsHUD() {
   const isRunning = useCharacterStore((s) => s.isRunning);
   const availableCharacters = useCharacterStore((s) => s.availableCharacters);
   const selectedCharacter = useCharacterStore((s) => s.selectedCharacter);
+  const loadError = useCharacterStore((s) => s.loadError);
 
   return (
     <div style={{
@@ -78,6 +79,20 @@ export function ControlsHUD() {
           <div style={{ color: '#aaa', fontWeight: 'bold', marginBottom: 4 }}>
             Character
           </div>
+          {loadError && (
+            <div style={{
+              background: 'rgba(255,60,60,0.2)',
+              border: '1px solid rgba(255,60,60,0.4)',
+              color: '#faa',
+              padding: '6px 8px',
+              borderRadius: 4,
+              fontSize: '0.7rem',
+              lineHeight: 1.3,
+              marginBottom: 4,
+            }}>
+              {loadError}
+            </div>
+          )}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {availableCharacters.map((c) => (
               <button

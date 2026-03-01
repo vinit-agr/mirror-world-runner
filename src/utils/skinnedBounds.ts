@@ -46,6 +46,5 @@ export function getSkinnedMinY(root: THREE.Object3D): number {
     }
   });
 
-  console.log(`[getSkinnedMinY] computed minY=${minY === Infinity ? 'none' : minY.toFixed(4)}`);
   return minY === Infinity ? 0 : minY;
 }

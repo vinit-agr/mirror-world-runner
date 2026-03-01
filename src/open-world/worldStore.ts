@@ -13,7 +13,9 @@ type WorldState = {
   setPlayerAngle: (angle: number) => void;
   setMoving: (v: boolean) => void;
   setAvailableCharacters: (chars: CharacterEntry[]) => void;
+  characterError: string | null;
   setSelectedCharacter: (file: string) => void;
+  setCharacterError: (err: string | null) => void;
 };
 
 export const useWorldStore = create<WorldState>((set) => ({
@@ -23,9 +25,11 @@ export const useWorldStore = create<WorldState>((set) => ({
   isMoving: false,
   availableCharacters: [],
   selectedCharacter: 'default.fbx',
+  characterError: null,
   setPlayerPosition: (x, z) => set({ playerX: x, playerZ: z }),
   setPlayerAngle: (angle) => set({ playerAngle: angle }),
   setMoving: (v) => set({ isMoving: v }),
   setAvailableCharacters: (chars) => set({ availableCharacters: chars }),
-  setSelectedCharacter: (file) => set({ selectedCharacter: file }),
+  setSelectedCharacter: (file) => set({ selectedCharacter: file, characterError: null }),
+  setCharacterError: (err) => set({ characterError: err }),
 }));

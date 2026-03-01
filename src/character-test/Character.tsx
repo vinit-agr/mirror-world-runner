@@ -54,9 +54,20 @@ export function Character() {
     try {
       fbx = await loader.loadAsync(`/models/characters/${encodeURIComponent(charFile)}`);
     } catch (err) {
-      console.error(`[Character] Failed to load character ${charFile}:`, err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[Character] Failed to load "${charFile}":`, msg);
+      if (msg.includes('version not supported')) {
+        useCharacterStore.getState().setLoadError(
+          `"${charFile.replace('.fbx', '')}" uses FBX 6.x format. Re-export from Mixamo as FBX Binary (7.4).`,
+        );
+      } else {
+        useCharacterStore.getState().setLoadError(`Failed to load: ${msg}`);
+      }
+      loadedCharFile.current = '';
       return;
     }
+
+    useCharacterStore.getState().setLoadError(null);
 
     fbx.scale.set(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
     fbx.rotation.set(0, Math.PI, 0);
@@ -70,6 +81,25 @@ export function Character() {
     groupRef.current.add(fbx);
     modelRef.current = fbx;
     loadedCharFile.current = charFile;
+
+    // Detect the character's Mixamo bone prefix.
+    // Animations use "mixamorigHips" etc. but some characters use
+    // "mixamorig7Hips", "mixamorig1Hips", etc.
+    let charBonePrefix = '';
+    fbx.traverse((child) => {
+      if (charBonePrefix) return;
+      if ((child as THREE.SkinnedMesh).isSkinnedMesh) {
+        const sm = child as THREE.SkinnedMesh;
+        for (const bone of sm.skeleton?.bones || []) {
+          const match = bone.name.match(/^(mixamorig\d*)/);
+          if (match) {
+            charBonePrefix = match[1];
+            return;
+          }
+        }
+      }
+    });
+    console.log(`[Character] "${charFile}" bone prefix: "${charBonePrefix}"`);
 
     // Set up mixer and load animations
     const mixer = new THREE.AnimationMixer(fbx);
@@ -91,6 +121,14 @@ export function Character() {
         if (anim.animations.length > 0) {
           const clip = anim.animations[0];
           clip.name = entry.name;
+
+          // Remap animation bone names to match this character's prefix.
+          if (charBonePrefix && charBonePrefix !== 'mixamorig') {
+            for (const track of clip.tracks) {
+              track.name = track.name.replace(/^mixamorig(?!\d)/, charBonePrefix);
+            }
+          }
+
           actions[entry.name] = mixer.clipAction(clip);
         }
       } catch (err) {
@@ -110,11 +148,9 @@ export function Character() {
     }
 
     // Compute ground offset using actual skinned vertex positions.
-    // Must update world matrices from the group level so parent transforms propagate.
     mixer.update(0);
     groupRef.current.updateMatrixWorld(true);
     const minY = getSkinnedMinY(fbx);
-    console.log(`[Character] Ground offset for "${charFile}": minY=${minY.toFixed(4)}, setting position.y=${(-minY).toFixed(4)}`);
     fbx.position.y = -minY;
 
     // Listen for one-shot animations finishing

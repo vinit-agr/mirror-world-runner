@@ -3,6 +3,7 @@ import { useWorldStore } from './worldStore';
 export function CharacterSelector() {
   const characters = useWorldStore((s) => s.availableCharacters);
   const selected = useWorldStore((s) => s.selectedCharacter);
+  const error = useWorldStore((s) => s.characterError);
 
   if (characters.length === 0) return null;
 
@@ -20,8 +21,23 @@ export function CharacterSelector() {
       display: 'flex',
       flexDirection: 'column',
       gap: 6,
+      maxHeight: '80vh',
+      overflowY: 'auto',
     }}>
       <div style={{ fontWeight: 'bold', marginBottom: 2 }}>Character</div>
+      {error && (
+        <div style={{
+          background: 'rgba(255,60,60,0.25)',
+          border: '1px solid rgba(255,60,60,0.5)',
+          color: '#faa',
+          padding: '6px 8px',
+          borderRadius: 4,
+          fontSize: '0.7rem',
+          lineHeight: 1.3,
+        }}>
+          {error}
+        </div>
+      )}
       {characters.map((c) => (
         <button
           key={c.file}

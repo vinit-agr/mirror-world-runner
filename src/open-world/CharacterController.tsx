@@ -31,7 +31,6 @@ export function CharacterController() {
         const res = await fetch('/models/characters/manifest.json');
         const data = await res.json();
         const chars: CharacterEntry[] = data.characters;
-        console.log('[CharacterController] Available characters:', chars.map(c => c.name));
         useWorldStore.getState().setAvailableCharacters(chars);
       } catch (err) {
         console.error('[CharacterController] Failed to load character manifest:', err);
@@ -42,7 +41,6 @@ export function CharacterController() {
 
   const loadCharacter = useCallback(async (charFile: string) => {
     if (!groupRef.current || loadedCharFile.current === charFile) return;
-    console.log(`[CharacterController] Loading character: "${charFile}"`);
 
     // Clean up previous model
     if (mixerRef.current) {
@@ -63,40 +61,52 @@ export function CharacterController() {
     const charUrl = `/models/characters/${encodeURIComponent(charFile)}`;
     let fbx: THREE.Group;
     try {
-      console.log(`[CharacterController] Fetching: ${charUrl}`);
       fbx = await loader.loadAsync(charUrl);
     } catch (err) {
-      console.error(`[CharacterController] Failed to load character "${charFile}":`, err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[CharacterController] Failed to load "${charFile}":`, msg);
+      // Surface error to UI
+      if (msg.includes('version not supported')) {
+        useWorldStore.getState().setCharacterError(
+          `"${charFile.replace('.fbx', '')}" uses FBX 6.x format which isn't supported. Re-export from Mixamo as FBX Binary (7.4).`,
+        );
+      } else {
+        useWorldStore.getState().setCharacterError(`Failed to load: ${msg}`);
+      }
+      loadedCharFile.current = ''; // Allow retry
       return;
     }
 
-    // Debug: inspect what's in the loaded FBX
-    let skinnedMeshCount = 0;
-    let meshCount = 0;
-    const boneNames: string[] = [];
     fbx.traverse((child) => {
-      if ((child as THREE.SkinnedMesh).isSkinnedMesh) {
-        skinnedMeshCount++;
-        const sm = child as THREE.SkinnedMesh;
-        sm.castShadow = true;
-        sm.receiveShadow = true;
-        // Collect bone names from the first skinned mesh
-        if (boneNames.length === 0 && sm.skeleton?.bones) {
-          sm.skeleton.bones.slice(0, 5).forEach(b => boneNames.push(b.name));
-        }
-      } else if ((child as THREE.Mesh).isMesh) {
-        meshCount++;
+      if ((child as THREE.Mesh).isMesh) {
         (child as THREE.Mesh).castShadow = true;
         (child as THREE.Mesh).receiveShadow = true;
       }
     });
-    console.log(`[CharacterController] "${charFile}" loaded: ${skinnedMeshCount} skinned meshes, ${meshCount} regular meshes, bones sample: [${boneNames.join(', ')}]`);
 
     fbx.scale.set(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
 
     groupRef.current.add(fbx);
     modelRef.current = fbx;
     loadedCharFile.current = charFile;
+
+    // Detect the character's Mixamo bone prefix.
+    // Animations use "mixamorigHips" etc. but some characters use
+    // "mixamorig7Hips", "mixamorig1Hips", etc.
+    let charBonePrefix = '';
+    fbx.traverse((child) => {
+      if (charBonePrefix) return;
+      if ((child as THREE.SkinnedMesh).isSkinnedMesh) {
+        const sm = child as THREE.SkinnedMesh;
+        for (const bone of sm.skeleton?.bones || []) {
+          const match = bone.name.match(/^(mixamorig\d*)/);
+          if (match) {
+            charBonePrefix = match[1];
+            return;
+          }
+        }
+      }
+    });
 
     // Set up mixer and load animations
     const mixer = new THREE.AnimationMixer(fbx);
@@ -119,18 +129,21 @@ export function CharacterController() {
           const clip = anim.animations[0];
           clip.name = entry.name;
 
-          // Debug: check if animation tracks match any bones in the character
-          const trackBoneNames = clip.tracks.map(t => t.name.split('.')[0]);
-          const uniqueBones = [...new Set(trackBoneNames)];
-          const matchesSkeleton = boneNames.length > 0 &&
-            uniqueBones.some(tb => boneNames.some(bn => bn === tb || tb.includes(bn) || bn.includes(tb)));
-          console.log(`[CharacterController] Anim "${entry.name}": ${clip.tracks.length} tracks, bones match: ${matchesSkeleton}, sample track bones: [${uniqueBones.slice(0, 3).join(', ')}]`);
+          // Remap animation bone names to match this character's prefix.
+          // E.g., animation has "mixamorigHips" but character uses "mixamorig7Hips"
+          if (charBonePrefix && charBonePrefix !== 'mixamorig') {
+            for (const track of clip.tracks) {
+              track.name = track.name.replace(/^mixamorig(?!\d)/, charBonePrefix);
+            }
+          } else if (!charBonePrefix) {
+            // No mixamorig prefix found (non-Mixamo character); animation may not work
+          }
 
-          // Strip horizontal root motion from Mixamo hip bone
+          // Strip horizontal root motion from hip/root bone.
           for (const track of clip.tracks) {
             if (track.name.endsWith('.position')) {
               const boneName = track.name.split('.')[0];
-              if (boneName.includes('Hips') || boneName.includes('Root')) {
+              if (/Hips|Root/i.test(boneName)) {
                 const values = track.values;
                 for (let i = 0; i < values.length; i += 3) {
                   values[i] = 0;     // X
@@ -147,15 +160,11 @@ export function CharacterController() {
     }
 
     actionsRef.current = actions;
-    console.log(`[CharacterController] Loaded actions: [${Object.keys(actions).join(', ')}]`);
 
     // Start with Idle
     if (actions['Idle']) {
       actions['Idle'].reset().fadeIn(0.3).play();
       prevAction.current = 'Idle';
-      console.log('[CharacterController] Playing Idle');
-    } else {
-      console.warn('[CharacterController] No Idle animation found!');
     }
 
     // Compute ground offset using actual skinned vertex positions.
@@ -163,7 +172,6 @@ export function CharacterController() {
     mixer.update(0);
     groupRef.current.updateMatrixWorld(true);
     const minY = getSkinnedMinY(fbx);
-    console.log(`[CharacterController] Ground offset: minY=${minY.toFixed(4)}, setting position.y=${(-minY).toFixed(4)}`);
     fbx.position.y = -minY;
 
     // Listen for one-shot animation finish
