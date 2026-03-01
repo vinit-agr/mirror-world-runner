@@ -26,7 +26,7 @@ public/models/**/*.glb
 # Whitelist specific character models
 !public/models/characters/default.fbx
 !public/models/characters/Amy.fbx
-!public/models/characters/Maria J J Ong.fbx
+!public/models/characters/Aj.fbx
 
 # Whitelist specific animation files
 !public/models/anims/Idle.fbx
