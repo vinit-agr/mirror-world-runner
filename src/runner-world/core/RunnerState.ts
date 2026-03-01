@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { RUNNER } from '../config/RunnerConfig';
 
-export type ObstacleVariant = 'barrier' | 'low' | 'tall';
+/** The variant is now the GLB filename from OBSTACLE_MODELS (e.g. 'barrel.glb'). */
+export type ObstacleVariant = string;
 
 export type RunnerObstacle = {
   id: number;
