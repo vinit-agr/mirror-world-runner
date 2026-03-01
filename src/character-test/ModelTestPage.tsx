@@ -1,10 +1,10 @@
 import { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { CharacterScene } from './CharacterScene';
-import { ControlsHUD } from './ControlsHUD';
+import { ModelTestScene } from './ModelTestScene';
+import { ModelTestHUD } from './ModelTestHUD';
 import { BackButton } from '../BackButton';
 
-export default function CharacterTestPage() {
+export default function ModelTestPage() {
   return (
     <div style={{ width: '100vw', height: '100dvh', background: '#1a1a2e' }}>
       <Suspense fallback={
@@ -18,7 +18,7 @@ export default function CharacterTestPage() {
           fontFamily: 'monospace',
           fontSize: '1.2rem',
         }}>
-          Loading character model...
+          Loading model...
         </div>
       }>
         <Canvas
@@ -28,10 +28,10 @@ export default function CharacterTestPage() {
           dpr={[1, 2]}
           style={{ width: '100%', height: '100%' }}
         >
-          <CharacterScene />
+          <ModelTestScene />
         </Canvas>
       </Suspense>
-      <ControlsHUD />
+      <ModelTestHUD />
       <BackButton />
     </div>
   );

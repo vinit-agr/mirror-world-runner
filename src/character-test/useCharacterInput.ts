@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { useCharacterStore } from './characterStore';
 
-export function useCharacterInput() {
+export function useCharacterInput(enabled = true) {
   useEffect(() => {
+    if (!enabled) return;
     const onKeyDown = (e: KeyboardEvent) => {
       const store = useCharacterStore.getState();
       const { currentAction, availableActions } = store;
@@ -47,5 +48,5 @@ export function useCharacterInput() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [enabled]);
 }

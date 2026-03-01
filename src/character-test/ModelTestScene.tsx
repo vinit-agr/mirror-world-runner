@@ -1,9 +1,14 @@
 import { OrbitControls, Grid } from '@react-three/drei';
 import { Character } from './Character';
+import { ObstacleViewer } from './ObstacleViewer';
 import { useCharacterInput } from './useCharacterInput';
+import { useModelTestStore } from './modelTestStore';
 
-export function CharacterScene() {
-  useCharacterInput();
+export function ModelTestScene() {
+  const mode = useModelTestStore((s) => s.mode);
+
+  // Only enable character keyboard input in character mode
+  useCharacterInput(mode === 'character');
 
   return (
     <>
@@ -29,7 +34,7 @@ export function CharacterScene() {
         <meshStandardMaterial color="#2a2a3e" metalness={0.2} roughness={0.8} />
       </mesh>
 
-      {/* Grid overlay for spatial reference */}
+      {/* Grid overlay */}
       <Grid
         position={[0, 0.01, 0]}
         args={[40, 40]}
@@ -41,10 +46,11 @@ export function CharacterScene() {
         infiniteGrid
       />
 
-      {/* Character */}
-      <Character />
+      {/* Render based on mode */}
+      {mode === 'character' && <Character />}
+      {mode === 'obstacle' && <ObstacleViewer />}
 
-      {/* Camera controls - orbit around the character */}
+      {/* Camera controls */}
       <OrbitControls
         target={[0, 1, 0]}
         minDistance={2}

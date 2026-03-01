@@ -1,6 +1,6 @@
 import { useCharacterStore } from './characterStore';
 
-export function ControlsHUD() {
+export function CharacterHUD() {
   const currentAction = useCharacterStore((s) => s.currentAction);
   const availableActions = useCharacterStore((s) => s.availableActions);
   const isRunning = useCharacterStore((s) => s.isRunning);
@@ -9,24 +9,7 @@ export function ControlsHUD() {
   const loadError = useCharacterStore((s) => s.loadError);
 
   return (
-    <div style={{
-      position: 'absolute',
-      top: 16,
-      left: 16,
-      fontFamily: 'monospace',
-      color: '#e0e0e0',
-      fontSize: '0.85rem',
-      lineHeight: 1.6,
-      background: 'rgba(0,0,0,0.7)',
-      padding: '12px 16px',
-      borderRadius: 8,
-      maxWidth: 320,
-      userSelect: 'none',
-    }}>
-      <div style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: 8, color: '#8080ff' }}>
-        Character Test
-      </div>
-
+    <>
       {/* Current state */}
       <div style={{ marginBottom: 8 }}>
         <span style={{ color: '#888' }}>Playing: </span>
@@ -126,7 +109,7 @@ export function ControlsHUD() {
         Drop FBX files into <span style={{ color: '#aaa' }}>public/models/characters/</span> or{' '}
         <span style={{ color: '#aaa' }}>public/models/anims/</span> and refresh.
       </div>
-    </div>
+    </>
   );
 }
 
