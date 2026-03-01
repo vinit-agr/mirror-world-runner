@@ -3,7 +3,8 @@ import { useRunnerObstacleSystem, getObstacleHalfExtents } from '../systems/Runn
 import { RUNNER } from '../config/RunnerConfig';
 import { URBAN_THEME } from '../config/RunnerTheme';
 import * as THREE from 'three';
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 
 function ObstacleMesh({ obs }: { obs: RunnerObstacle }) {
   const theme = URBAN_THEME;
@@ -45,12 +46,13 @@ function DebugWireframe({ obs }: { obs: RunnerObstacle }) {
   );
 }
 
-export function PlayerDebugWireframe({ playerX, playerY, isSliding }: {
-  playerX: number;
-  playerY: number;
-  isSliding: boolean;
+export function PlayerDebugWireframe({ playerXRef, playerYRef }: {
+  playerXRef: React.RefObject<number>;
+  playerYRef: React.RefObject<number>;
 }) {
   const showHitboxes = useRunnerStore((s) => s.showHitboxes);
+  const isSliding = useRunnerStore((s) => s.isSliding);
+  const lineRef = useRef<THREE.LineSegments>(null!);
   const [hx, hy, hz] = RUNNER.playerHitboxHalf;
   const effectiveHy = isSliding ? RUNNER.playerSlideHitboxHalfY : hy;
 
@@ -59,10 +61,15 @@ export function PlayerDebugWireframe({ playerX, playerY, isSliding }: {
     [hx, effectiveHy, hz],
   );
 
+  useFrame(() => {
+    if (!lineRef.current) return;
+    lineRef.current.position.set(playerXRef.current ?? 0, playerYRef.current ?? 0.5, 0);
+  });
+
   if (!showHitboxes) return null;
 
   return (
-    <lineSegments position={[playerX, playerY, 0]}>
+    <lineSegments ref={lineRef} position={[0, 0.5, 0]}>
       <edgesGeometry args={[geometry]} />
       <lineBasicMaterial color="#00ff00" />
     </lineSegments>

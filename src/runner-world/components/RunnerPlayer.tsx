@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { MathUtils } from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
@@ -29,8 +29,6 @@ export function RunnerPlayer() {
   const jumpT = useRef(0);
   // Track current player Y for collision/debug
   const playerY = useRef(0.5);
-
-  const { scene } = useThree();
 
   const loadCharacter = useCallback(async (charFile: string) => {
     if (!groupRef.current || loadedCharFile.current === charFile) return;
@@ -283,20 +281,19 @@ export function RunnerPlayer() {
     if (collisions > 0 && state.collisionCount === 0) {
       console.log(`[RunnerWorld] Collision detected! (${collisions} overlaps)`);
     }
-    state.setCollisionCount(collisions);
+    if (collisions !== state.collisionCount) {
+      state.setCollisionCount(collisions);
+    }
 
     mixerRef.current.update(delta);
   });
-
-  const state = useRunnerStore.getState();
 
   return (
     <>
       <group ref={groupRef} position={[RUNNER.lanePositions[1], 0, 0]} />
       <PlayerDebugWireframe
-        playerX={currentX.current}
-        playerY={playerY.current}
-        isSliding={state.isSliding}
+        playerXRef={currentX}
+        playerYRef={playerY}
       />
     </>
   );

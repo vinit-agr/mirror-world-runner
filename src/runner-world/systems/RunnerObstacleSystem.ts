@@ -31,23 +31,23 @@ export function useRunnerObstacleSystem() {
       });
     }
 
-    // Move + despawn obstacles
+    // Move + despawn obstacles in a single batched update
     const obstacles = useRunnerStore.getState().obstacles;
-    for (const obs of obstacles) {
-      if (!obs.active) continue;
+    let needsPrune = false;
+    const updated = obstacles.map((obs) => {
+      if (!obs.active) return obs;
       const newZ = obs.z + speed * delta;
       if (newZ > RUNNER.obstacleDespawnZ) {
-        state.deactivateObstacle(obs.id);
-      } else {
-        state.updateObstacle(obs.id, { z: newZ });
+        needsPrune = true;
+        return { ...obs, active: false };
       }
-    }
-
+      return { ...obs, z: newZ };
+    });
     // Prune inactive obstacles periodically
-    const all = useRunnerStore.getState().obstacles;
-    if (all.length > RUNNER.obstaclePoolSize * 2) {
-      useRunnerStore.setState({ obstacles: all.filter((o) => o.active) });
-    }
+    const final = needsPrune && updated.length > RUNNER.obstaclePoolSize * 2
+      ? updated.filter((o) => o.active)
+      : updated;
+    useRunnerStore.setState({ obstacles: final });
   });
 }
 
