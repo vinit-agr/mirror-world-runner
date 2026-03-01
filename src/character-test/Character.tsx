@@ -69,8 +69,6 @@ export function Character() {
 
     useCharacterStore.getState().setLoadError(null);
 
-    fbx.scale.set(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
-    fbx.rotation.set(0, Math.PI, 0);
     fbx.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         (child as THREE.Mesh).castShadow = true;
@@ -78,9 +76,10 @@ export function Character() {
       }
     });
 
-    groupRef.current.add(fbx);
-    modelRef.current = fbx;
-    loadedCharFile.current = charFile;
+    // NOTE: Do NOT scale, rotate, or add to scene yet.
+    // Scale must be applied AFTER computing ground offset because
+    // FBXLoader computes skeleton boneInverses at the original scale.
+    // Adding to scene last prevents a T-pose flash while anims load.
 
     // Detect the character's Mixamo bone prefix.
     // Animations use "mixamorigHips" etc. but some characters use
@@ -140,18 +139,32 @@ export function Character() {
     const names = Object.keys(actions);
     useCharacterStore.getState().setAvailableActions(names);
 
+    // Play default animation at full weight so the skeleton is in the
+    // actual pose (not bind/T-pose) when we sample vertices for grounding.
     const defaultAnim = names.includes('Idle') ? 'Idle' : names[0];
     if (defaultAnim && actions[defaultAnim]) {
-      actions[defaultAnim].reset().fadeIn(0.3).play();
+      const action = actions[defaultAnim];
+      action.reset().play();
+      action.setEffectiveWeight(1);
       useCharacterStore.getState().setCurrentAction(defaultAnim);
       prevAction.current = defaultAnim;
     }
 
-    // Compute ground offset using actual skinned vertex positions.
+    // Compute ground offset at original FBX scale (no MODEL_SCALE yet).
+    // This keeps bone world-matrices consistent with the boneInverses
+    // that FBXLoader computed at load time, so applyBoneTransform works.
     mixer.update(0);
-    groupRef.current.updateMatrixWorld(true);
+    fbx.updateMatrixWorld(true);
     const minY = getSkinnedMinY(fbx);
-    fbx.position.y = -minY;
+
+    // Now apply scale, rotation, ground offset, and add to scene in one go
+    // so the user never sees T-pose or floating characters.
+    fbx.scale.set(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
+    fbx.rotation.set(0, Math.PI, 0);
+    fbx.position.y = -minY * MODEL_SCALE;
+    groupRef.current.add(fbx);
+    modelRef.current = fbx;
+    loadedCharFile.current = charFile;
 
     // Listen for one-shot animations finishing
     mixer.addEventListener('finished', (e: { action: THREE.AnimationAction }) => {

@@ -2,8 +2,15 @@ import * as THREE from 'three';
 
 /**
  * Compute the minimum Y of all vertices in the current (skinned) pose.
- * Uses boneTransform() for SkinnedMesh to get actual post-skeleton positions.
- * Also checks regular Meshes as a fallback for non-skinned characters.
+ *
+ * IMPORTANT: Call this BEFORE applying any external scale (MODEL_SCALE) to
+ * the root object.  The FBXLoader computes skeleton boneInverses and
+ * bindMatrix at load-time scale.  If you scale the root first, bone
+ * world-matrices will include that scale while boneInverses won't,
+ * producing wrong skinned positions.
+ *
+ * The returned value is in the root's original (unscaled) coordinate space.
+ * Multiply by MODEL_SCALE when using it as a position offset.
  */
 export function getSkinnedMinY(root: THREE.Object3D): number {
   let minY = Infinity;
@@ -34,11 +41,8 @@ export function getSkinnedMinY(root: THREE.Object3D): number {
       v.fromBufferAttribute(pos, i);
 
       if (isSkinned) {
-        try {
-          (child as THREE.SkinnedMesh).boneTransform(i, v);
-        } catch {
-          // Fall through with raw position if boneTransform fails
-        }
+        // Three.js ≥ r152 renamed boneTransform → applyBoneTransform
+        (child as THREE.SkinnedMesh).applyBoneTransform(i, v);
       }
 
       v.applyMatrix4(mesh.matrixWorld);

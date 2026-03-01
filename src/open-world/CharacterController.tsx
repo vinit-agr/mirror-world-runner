@@ -84,11 +84,11 @@ export function CharacterController() {
       }
     });
 
-    fbx.scale.set(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
-
-    groupRef.current.add(fbx);
-    modelRef.current = fbx;
-    loadedCharFile.current = charFile;
+    // NOTE: Do NOT scale or add to scene yet.
+    // Scale must be applied AFTER computing ground offset because
+    // FBXLoader computes skeleton boneInverses at the original scale.
+    // Scaling first would cause a matrix mismatch in applyBoneTransform.
+    // Adding to scene last prevents a T-pose flash while anims load.
 
     // Detect the character's Mixamo bone prefix.
     // Animations use "mixamorigHips" etc. but some characters use
@@ -161,18 +161,29 @@ export function CharacterController() {
 
     actionsRef.current = actions;
 
-    // Start with Idle
+    // Play Idle at full weight so the skeleton is in the actual pose
+    // (not bind/T-pose) when we sample vertex positions for grounding.
     if (actions['Idle']) {
-      actions['Idle'].reset().fadeIn(0.3).play();
+      const idle = actions['Idle'];
+      idle.reset().play();
+      idle.setEffectiveWeight(1);
       prevAction.current = 'Idle';
     }
 
-    // Compute ground offset using actual skinned vertex positions.
-    // Must update world matrices from the group level so parent transforms propagate.
+    // Compute ground offset at original FBX scale (no MODEL_SCALE yet).
+    // This keeps bone world-matrices consistent with the boneInverses
+    // that FBXLoader computed at load time, so applyBoneTransform works.
     mixer.update(0);
-    groupRef.current.updateMatrixWorld(true);
+    fbx.updateMatrixWorld(true);
     const minY = getSkinnedMinY(fbx);
-    fbx.position.y = -minY;
+
+    // Now apply scale, ground offset, and add to scene in one go
+    // so the user never sees T-pose or floating characters.
+    fbx.scale.set(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
+    fbx.position.y = -minY * MODEL_SCALE;
+    groupRef.current.add(fbx);
+    modelRef.current = fbx;
+    loadedCharFile.current = charFile;
 
     // Listen for one-shot animation finish
     mixer.addEventListener('finished', (e: { action: THREE.AnimationAction }) => {
