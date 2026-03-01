@@ -5,6 +5,7 @@ import { Home } from './Home';
 const CharacterTestPage = lazy(() => import('./character-test/CharacterTestPage'));
 const MirrorWorldRunnerPage = lazy(() => import('./game/MirrorWorldRunnerPage'));
 const OpenWorldPage = lazy(() => import('./open-world/OpenWorldPage'));
+const RunnerWorldPage = lazy(() => import('./runner-world/RunnerWorldPage'));
 
 function LoadingFallback() {
   return (
@@ -34,6 +35,7 @@ export default function App() {
       {route === 'character-test' && <CharacterTestPage />}
       {route === 'mirror-world-runner' && <MirrorWorldRunnerPage />}
       {route === 'open-world' && <OpenWorldPage />}
+      {route === 'runner-world' && <RunnerWorldPage />}
     </Suspense>
   );
 }
