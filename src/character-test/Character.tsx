@@ -140,16 +140,25 @@ export function Character() {
 
     // Compute per-animation ground offsets at original FBX scale.
     // Each animation positions the skeleton differently, so the lowest
-    // vertex Y varies. We sample frame 0 of each animation to find
-    // the correct ground offset for that pose.
+    // vertex Y varies.  We sample several frames across each clip and
+    // keep the minimum minY — this ensures the character never clips
+    // below the floor, regardless of which frame is playing.
+    const GROUND_SAMPLES = 5;
     const groundOffsets: Record<string, number> = {};
     for (const [name, action] of Object.entries(actions)) {
       mixer.stopAllAction();
       action.reset().play();
       action.setEffectiveWeight(1);
-      mixer.update(0);
-      fbx.updateMatrixWorld(true);
-      groundOffsets[name] = getSkinnedMinY(fbx);
+
+      const duration = action.getClip().duration;
+      let worst = Infinity;
+      for (let s = 0; s <= GROUND_SAMPLES; s++) {
+        mixer.setTime((s / GROUND_SAMPLES) * duration);
+        fbx.updateMatrixWorld(true);
+        const y = getSkinnedMinY(fbx);
+        if (y < worst) worst = y;
+      }
+      groundOffsets[name] = worst === Infinity ? 0 : worst;
     }
     groundOffsetsRef.current = groundOffsets;
 
