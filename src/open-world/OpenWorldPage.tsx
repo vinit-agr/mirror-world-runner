@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OpenWorldScene } from './OpenWorldScene';
+import { CharacterSelector } from './CharacterSelector';
 import { BackButton } from '../BackButton';
 
 export default function OpenWorldPage() {
@@ -26,6 +27,7 @@ export default function OpenWorldPage() {
         </Canvas>
       </Suspense>
       <BackButton />
+      <CharacterSelector />
       <div style={{
         position: 'absolute',
         bottom: 16,

@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useFBX } from '@react-three/drei';
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { useWorldStore } from './worldStore';
+import type { CharacterEntry } from './worldStore';
 
 const MODEL_SCALE = 0.01;
 const MOVE_SPEED = 6;
@@ -13,96 +13,124 @@ type AnimEntry = { name: string; file: string };
 
 export function CharacterController() {
   const groupRef = useRef<THREE.Group>(null!);
+  const modelRef = useRef<THREE.Group | null>(null);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
   const actionsRef = useRef<Record<string, THREE.AnimationAction>>({});
   const prevAction = useRef<string>('');
   const oneShotPlaying = useRef<string | null>(null);
   const keys = useRef(new Set<string>());
-  const [ready, setReady] = useState(false);
+  const loadedCharFile = useRef<string>('');
 
-  const fbx = useFBX('/models/character.fbx');
+  const { camera } = useThree();
 
-  // Enable shadows
+  // Load character manifest on mount
   useEffect(() => {
+    async function loadManifest() {
+      try {
+        const res = await fetch('/models/characters/manifest.json');
+        const data = await res.json();
+        const chars: CharacterEntry[] = data.characters;
+        useWorldStore.getState().setAvailableCharacters(chars);
+      } catch (err) {
+        console.error('[CharacterController] Failed to load character manifest:', err);
+      }
+    }
+    loadManifest();
+  }, []);
+
+  const loadCharacter = useCallback(async (charFile: string) => {
+    if (!groupRef.current || loadedCharFile.current === charFile) return;
+
+    // Clean up previous model
+    if (mixerRef.current) {
+      mixerRef.current.stopAllAction();
+      mixerRef.current = null;
+    }
+    actionsRef.current = {};
+    prevAction.current = '';
+    oneShotPlaying.current = null;
+
+    if (modelRef.current) {
+      groupRef.current.remove(modelRef.current);
+      modelRef.current = null;
+    }
+
+    // Load new character FBX
+    const loader = new FBXLoader();
+    let fbx: THREE.Group;
+    try {
+      fbx = await loader.loadAsync(`/models/characters/${charFile}`);
+    } catch (err) {
+      console.error(`[CharacterController] Failed to load character ${charFile}:`, err);
+      return;
+    }
+
+    fbx.scale.set(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
     fbx.traverse((child) => {
       if ((child as THREE.SkinnedMesh).isSkinnedMesh) {
         (child as THREE.SkinnedMesh).castShadow = true;
         (child as THREE.SkinnedMesh).receiveShadow = true;
       }
     });
-  }, [fbx]);
 
-  // Load animations from manifest
-  useEffect(() => {
+    groupRef.current.add(fbx);
+    modelRef.current = fbx;
+    loadedCharFile.current = charFile;
+
+    // Set up mixer and load animations
     const mixer = new THREE.AnimationMixer(fbx);
     mixerRef.current = mixer;
 
-    async function loadAnims() {
-      let entries: AnimEntry[];
+    let entries: AnimEntry[];
+    try {
+      const res = await fetch('/models/anims/manifest.json');
+      entries = (await res.json()).animations;
+    } catch {
+      console.error('[CharacterController] Failed to load animation manifest');
+      return;
+    }
+
+    const actions: Record<string, THREE.AnimationAction> = {};
+    for (const entry of entries) {
       try {
-        const res = await fetch('/models/anims/manifest.json');
-        entries = (await res.json()).animations;
-      } catch {
-        console.error('[CharacterController] Failed to load manifest');
-        return;
-      }
-
-      const loader = new FBXLoader();
-      const actions: Record<string, THREE.AnimationAction> = {};
-
-      for (const entry of entries) {
-        try {
-          const anim = await loader.loadAsync(`/models/anims/${entry.file}`);
-          if (anim.animations.length > 0) {
-            const clip = anim.animations[0];
-            clip.name = entry.name;
-            // Strip horizontal root motion from Mixamo hip bone to prevent
-            // teleport on loop, but keep vertical (Y) for animations like Slide
-            for (const track of clip.tracks) {
-              if (track.name.endsWith('.position')) {
-                const boneName = track.name.split('.')[0];
-                if (boneName.includes('Hips') || boneName.includes('Root')) {
-                  const values = track.values;
-                  // Position values are [x,y,z, x,y,z, ...] — zero out X and Z
-                  for (let i = 0; i < values.length; i += 3) {
-                    values[i] = 0;     // X
-                    values[i + 2] = 0; // Z
-                  }
+        const anim = await loader.loadAsync(`/models/anims/${entry.file}`);
+        if (anim.animations.length > 0) {
+          const clip = anim.animations[0];
+          clip.name = entry.name;
+          // Strip horizontal root motion from Mixamo hip bone to prevent
+          // teleport on loop, but keep vertical (Y) for animations like Slide
+          for (const track of clip.tracks) {
+            if (track.name.endsWith('.position')) {
+              const boneName = track.name.split('.')[0];
+              if (boneName.includes('Hips') || boneName.includes('Root')) {
+                const values = track.values;
+                for (let i = 0; i < values.length; i += 3) {
+                  values[i] = 0;     // X
+                  values[i + 2] = 0; // Z
                 }
               }
             }
-            actions[entry.name] = mixer.clipAction(clip);
           }
-        } catch (err) {
-          console.warn(`[CharacterController] Skipping ${entry.file}:`, err);
+          actions[entry.name] = mixer.clipAction(clip);
         }
+      } catch (err) {
+        console.warn(`[CharacterController] Skipping ${entry.file}:`, err);
       }
-
-      actionsRef.current = actions;
-
-      // Start with Idle
-      if (actions['Idle']) {
-        actions['Idle'].reset().fadeIn(0.3).play();
-        prevAction.current = 'Idle';
-      }
-
-      setReady(true);
     }
 
-    loadAnims();
-    return () => { mixer.stopAllAction(); };
-  }, [fbx]);
+    actionsRef.current = actions;
 
-  // When a one-shot animation finishes, return to locomotion
-  useEffect(() => {
-    const mixer = mixerRef.current;
-    if (!mixer) return;
-    const onFinished = (e: { action: THREE.AnimationAction }) => {
+    // Start with Idle
+    if (actions['Idle']) {
+      actions['Idle'].reset().fadeIn(0.3).play();
+      prevAction.current = 'Idle';
+    }
+
+    // Listen for one-shot animation finish
+    mixer.addEventListener('finished', (e: { action: THREE.AnimationAction }) => {
       const name = e.action.getClip().name;
       if (name === oneShotPlaying.current) {
         oneShotPlaying.current = null;
-        // Fade back to current locomotion state
-        const actions = actionsRef.current;
         const locoAction = keys.current.size > 0 ? 'Run' : 'Idle';
         e.action.fadeOut(0.2);
         if (actions[locoAction]) {
@@ -110,10 +138,14 @@ export function CharacterController() {
           prevAction.current = locoAction;
         }
       }
-    };
-    mixer.addEventListener('finished', onFinished);
-    return () => { mixer.removeEventListener('finished', onFinished); };
-  }, [ready]);
+    });
+  }, []);
+
+  // Load default character on mount, react to character selection changes
+  const selectedCharacter = useWorldStore((s) => s.selectedCharacter);
+  useEffect(() => {
+    loadCharacter(selectedCharacter);
+  }, [selectedCharacter, loadCharacter]);
 
   // Keyboard tracking + one-shot triggers
   useEffect(() => {
@@ -121,7 +153,6 @@ export function CharacterController() {
       const key = e.key.toLowerCase();
       keys.current.add(key);
 
-      // One-shot animations (only trigger if not already playing one)
       if (!oneShotPlaying.current) {
         const actions = actionsRef.current;
         let oneShot: string | null = null;
@@ -151,9 +182,7 @@ export function CharacterController() {
       window.removeEventListener('keydown', onDown);
       window.removeEventListener('keyup', onUp);
     };
-  }, [ready]);
-
-  const { camera } = useThree();
+  }, []);
 
   // Movement + animation per frame
   useFrame((_, delta) => {
@@ -162,7 +191,6 @@ export function CharacterController() {
     const k = keys.current;
     const moveDir = new THREE.Vector3();
 
-    // Camera-relative movement
     const camForward = new THREE.Vector3();
     camera.getWorldDirection(camForward);
     camForward.y = 0;
@@ -181,7 +209,6 @@ export function CharacterController() {
       groupRef.current.position.x += moveDir.x * MOVE_SPEED * delta;
       groupRef.current.position.z += moveDir.z * MOVE_SPEED * delta;
 
-      // Rotate to face movement direction
       const targetAngle = Math.atan2(moveDir.x, moveDir.z);
       const current = groupRef.current.rotation.y;
       let diff = targetAngle - current;
@@ -190,7 +217,6 @@ export function CharacterController() {
       groupRef.current.rotation.y += diff * Math.min(1, ROTATION_SPEED * delta);
     }
 
-    // Update world store
     useWorldStore.getState().setPlayerPosition(
       groupRef.current.position.x,
       groupRef.current.position.z,
@@ -211,12 +237,5 @@ export function CharacterController() {
     mixerRef.current.update(delta);
   });
 
-  // Suppress unused variable warning for ready; it is set to signal load completion
-  void ready;
-
-  return (
-    <group ref={groupRef} position={[0, 0, 0]}>
-      <primitive object={fbx} scale={MODEL_SCALE} />
-    </group>
-  );
+  return <group ref={groupRef} position={[0, 0, 0]} />;
 }

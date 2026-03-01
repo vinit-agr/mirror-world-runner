@@ -4,6 +4,8 @@ export function ControlsHUD() {
   const currentAction = useCharacterStore((s) => s.currentAction);
   const availableActions = useCharacterStore((s) => s.availableActions);
   const isRunning = useCharacterStore((s) => s.isRunning);
+  const availableCharacters = useCharacterStore((s) => s.availableCharacters);
+  const selectedCharacter = useCharacterStore((s) => s.selectedCharacter);
 
   return (
     <div style={{
@@ -69,6 +71,35 @@ export function ControlsHUD() {
           </div>
         )}
       </div>
+
+      {/* Character selection */}
+      {availableCharacters.length > 0 && (
+        <div style={{ borderTop: '1px solid #444', paddingTop: 8, marginTop: 10 }}>
+          <div style={{ color: '#aaa', fontWeight: 'bold', marginBottom: 4 }}>
+            Character
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {availableCharacters.map((c) => (
+              <button
+                key={c.file}
+                onClick={() => useCharacterStore.getState().setSelectedCharacter(c.file)}
+                style={{
+                  padding: '4px 10px',
+                  fontFamily: 'monospace',
+                  fontSize: '0.8rem',
+                  background: c.file === selectedCharacter ? '#4040a0' : '#2a2a3e',
+                  color: c.file === selectedCharacter ? '#fff' : '#ccc',
+                  border: c.file === selectedCharacter ? '1px solid #6060c0' : '1px solid #444',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                }}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Instructions for adding animations */}
       <div style={{

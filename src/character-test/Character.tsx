@@ -1,27 +1,64 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { useFBX } from '@react-three/drei';
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { useCharacterStore } from './characterStore';
+import type { CharacterEntry } from './characterStore';
 
-// Scale factor: Mixamo characters are ~180 units tall, we want ~1.8 units
 const MODEL_SCALE = 0.01;
 
 type AnimEntry = { name: string; file: string };
 
 export function Character() {
   const groupRef = useRef<THREE.Group>(null!);
+  const modelRef = useRef<THREE.Group | null>(null);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
   const actionsRef = useRef<Record<string, THREE.AnimationAction>>({});
   const prevAction = useRef<string | null>(null);
-  const [ready, setReady] = useState(false);
+  const loadedCharFile = useRef<string>('');
 
-  // Load the main character mesh
-  const fbx = useFBX('/models/character.fbx');
-
-  // Set up shadows on the model
+  // Load character manifest on mount
   useEffect(() => {
+    async function loadManifest() {
+      try {
+        const res = await fetch('/models/characters/manifest.json');
+        const data = await res.json();
+        const chars: CharacterEntry[] = data.characters;
+        useCharacterStore.getState().setAvailableCharacters(chars);
+      } catch (err) {
+        console.error('[Character] Failed to load character manifest:', err);
+      }
+    }
+    loadManifest();
+  }, []);
+
+  const loadCharacter = useCallback(async (charFile: string) => {
+    if (!groupRef.current || loadedCharFile.current === charFile) return;
+
+    // Clean up previous
+    if (mixerRef.current) {
+      mixerRef.current.stopAllAction();
+      mixerRef.current = null;
+    }
+    actionsRef.current = {};
+    prevAction.current = null;
+
+    if (modelRef.current) {
+      groupRef.current.remove(modelRef.current);
+      modelRef.current = null;
+    }
+
+    const loader = new FBXLoader();
+    let fbx: THREE.Group;
+    try {
+      fbx = await loader.loadAsync(`/models/characters/${charFile}`);
+    } catch (err) {
+      console.error(`[Character] Failed to load character ${charFile}:`, err);
+      return;
+    }
+
+    fbx.scale.set(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
+    fbx.rotation.set(0, Math.PI, 0);
     fbx.traverse((child) => {
       if ((child as THREE.SkinnedMesh).isSkinnedMesh) {
         const sm = child as THREE.SkinnedMesh;
@@ -30,72 +67,64 @@ export function Character() {
       }
     });
 
-    const box = new THREE.Box3().setFromObject(fbx);
-    const size = box.getSize(new THREE.Vector3());
-    console.log('[Character] Model loaded. BBox size:', size.toArray().map((v) => +v.toFixed(1)));
-  }, [fbx]);
+    groupRef.current.add(fbx);
+    modelRef.current = fbx;
+    loadedCharFile.current = charFile;
 
-  // Dynamically load animations from manifest.json
-  useEffect(() => {
+    // Set up mixer and load animations
     const mixer = new THREE.AnimationMixer(fbx);
     mixerRef.current = mixer;
 
-    async function loadAnimations() {
-      // Fetch the manifest
-      let entries: AnimEntry[];
-      try {
-        const res = await fetch('/models/anims/manifest.json');
-        const data = await res.json();
-        entries = data.animations;
-        console.log('[Character] Manifest loaded:', entries.map((e) => e.name));
-      } catch (err) {
-        console.error('[Character] Failed to load manifest.json:', err);
-        return;
-      }
-
-      const loader = new FBXLoader();
-      const actions: Record<string, THREE.AnimationAction> = {};
-
-      // Load each animation FBX
-      for (const entry of entries) {
-        try {
-          const animFbx = await loader.loadAsync(`/models/anims/${entry.file}`);
-          if (animFbx.animations.length > 0) {
-            const clip = animFbx.animations[0];
-            clip.name = entry.name;
-            const action = mixer.clipAction(clip);
-            actions[entry.name] = action;
-            console.log(`[Character] Animation "${entry.name}": ${clip.duration.toFixed(2)}s, ${clip.tracks.length} tracks`);
-          } else {
-            console.warn(`[Character] No animations in ${entry.file}`);
-          }
-        } catch (err) {
-          console.error(`[Character] Failed to load ${entry.file}:`, err);
-        }
-      }
-
-      actionsRef.current = actions;
-      const names = Object.keys(actions);
-      useCharacterStore.getState().setAvailableActions(names);
-
-      // Auto-play Idle if available, otherwise first
-      const defaultAnim = names.includes('Idle') ? 'Idle' : names[0];
-      if (defaultAnim && actions[defaultAnim]) {
-        actions[defaultAnim].reset().fadeIn(0.3).play();
-        useCharacterStore.getState().setCurrentAction(defaultAnim);
-        prevAction.current = defaultAnim;
-        console.log(`[Character] Default animation: "${defaultAnim}"`);
-      }
-
-      setReady(true);
+    let entries: AnimEntry[];
+    try {
+      const res = await fetch('/models/anims/manifest.json');
+      entries = (await res.json()).animations;
+    } catch {
+      console.error('[Character] Failed to load animation manifest');
+      return;
     }
 
-    loadAnimations();
+    const actions: Record<string, THREE.AnimationAction> = {};
+    for (const entry of entries) {
+      try {
+        const anim = await loader.loadAsync(`/models/anims/${entry.file}`);
+        if (anim.animations.length > 0) {
+          const clip = anim.animations[0];
+          clip.name = entry.name;
+          actions[entry.name] = mixer.clipAction(clip);
+        }
+      } catch (err) {
+        console.warn(`[Character] Skipping ${entry.file}:`, err);
+      }
+    }
 
-    return () => {
-      mixer.stopAllAction();
-    };
-  }, [fbx]);
+    actionsRef.current = actions;
+    const names = Object.keys(actions);
+    useCharacterStore.getState().setAvailableActions(names);
+
+    const defaultAnim = names.includes('Idle') ? 'Idle' : names[0];
+    if (defaultAnim && actions[defaultAnim]) {
+      actions[defaultAnim].reset().fadeIn(0.3).play();
+      useCharacterStore.getState().setCurrentAction(defaultAnim);
+      prevAction.current = defaultAnim;
+    }
+
+    // Listen for one-shot animations finishing
+    mixer.addEventListener('finished', (e: { action: THREE.AnimationAction }) => {
+      const finishedName = e.action.getClip().name;
+      if (finishedName === 'Jump' || finishedName === 'Slide') {
+        const { isRunning } = useCharacterStore.getState();
+        const returnTo = isRunning ? 'Run' : 'Idle';
+        useCharacterStore.getState().setCurrentAction(returnTo);
+      }
+    });
+  }, []);
+
+  // React to character selection changes
+  const selectedCharacter = useCharacterStore((s) => s.selectedCharacter);
+  useEffect(() => {
+    loadCharacter(selectedCharacter);
+  }, [selectedCharacter, loadCharacter]);
 
   // Handle animation switching from store
   useFrame((_, delta) => {
@@ -105,14 +134,11 @@ export function Character() {
     const actions = actionsRef.current;
 
     if (currentAction !== prevAction.current) {
-      // Fade out previous
       if (prevAction.current && actions[prevAction.current]) {
         actions[prevAction.current].fadeOut(0.2);
       }
-      // Fade in new
       if (currentAction && actions[currentAction]) {
         const action = actions[currentAction];
-        // One-shot animations (Jump, Slide) play once then return to previous
         if (currentAction === 'Jump' || currentAction === 'Slide') {
           action.reset().fadeIn(0.2).play();
           action.setLoop(THREE.LoopOnce, 1);
@@ -127,32 +153,5 @@ export function Character() {
     mixerRef.current.update(delta);
   });
 
-  // Listen for one-shot animations finishing and return to idle/run
-  useEffect(() => {
-    if (!mixerRef.current) return;
-    const mixer = mixerRef.current;
-
-    const onFinished = (e: { action: THREE.AnimationAction }) => {
-      const finishedName = e.action.getClip().name;
-      if (finishedName === 'Jump' || finishedName === 'Slide') {
-        // Return to whatever the base state should be
-        const { isRunning } = useCharacterStore.getState();
-        const returnTo = isRunning ? 'Run' : 'Idle';
-        useCharacterStore.getState().setCurrentAction(returnTo);
-      }
-    };
-
-    mixer.addEventListener('finished', onFinished);
-    return () => mixer.removeEventListener('finished', onFinished);
-  }, [ready]);
-
-  return (
-    <group ref={groupRef} position={[0, 0, 0]}>
-      <primitive
-        object={fbx}
-        scale={MODEL_SCALE}
-        rotation={[0, Math.PI, 0]}
-      />
-    </group>
-  );
+  return <group ref={groupRef} position={[0, 0, 0]} />;
 }
