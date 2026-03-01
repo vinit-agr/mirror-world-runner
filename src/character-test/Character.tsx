@@ -52,7 +52,7 @@ export function Character() {
     const loader = new FBXLoader();
     let fbx: THREE.Group;
     try {
-      fbx = await loader.loadAsync(`/models/characters/${charFile}`);
+      fbx = await loader.loadAsync(`/models/characters/${encodeURIComponent(charFile)}`);
     } catch (err) {
       console.error(`[Character] Failed to load character ${charFile}:`, err);
       return;
@@ -61,10 +61,9 @@ export function Character() {
     fbx.scale.set(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
     fbx.rotation.set(0, Math.PI, 0);
     fbx.traverse((child) => {
-      if ((child as THREE.SkinnedMesh).isSkinnedMesh) {
-        const sm = child as THREE.SkinnedMesh;
-        sm.castShadow = true;
-        sm.receiveShadow = true;
+      if ((child as THREE.Mesh).isMesh) {
+        (child as THREE.Mesh).castShadow = true;
+        (child as THREE.Mesh).receiveShadow = true;
       }
     });
 
@@ -110,10 +109,12 @@ export function Character() {
       prevAction.current = defaultAnim;
     }
 
-    // Compute ground offset using actual skinned vertex positions
-    // (Box3.setFromObject doesn't apply bone transforms for SkinnedMesh)
+    // Compute ground offset using actual skinned vertex positions.
+    // Must update world matrices from the group level so parent transforms propagate.
     mixer.update(0);
+    groupRef.current.updateMatrixWorld(true);
     const minY = getSkinnedMinY(fbx);
+    console.log(`[Character] Ground offset for "${charFile}": minY=${minY.toFixed(4)}, setting position.y=${(-minY).toFixed(4)}`);
     fbx.position.y = -minY;
 
     // Listen for one-shot animations finishing

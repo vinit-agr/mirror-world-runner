@@ -1,34 +1,51 @@
 import * as THREE from 'three';
 
 /**
- * Compute the minimum Y of all skinned vertices in the current pose.
- * Box3.setFromObject does NOT apply bone transforms for SkinnedMesh,
- * so we manually use boneTransform() to get the actual vertex positions.
+ * Compute the minimum Y of all vertices in the current (skinned) pose.
+ * Uses boneTransform() for SkinnedMesh to get actual post-skeleton positions.
+ * Also checks regular Meshes as a fallback for non-skinned characters.
  */
 export function getSkinnedMinY(root: THREE.Object3D): number {
   let minY = Infinity;
   const v = new THREE.Vector3();
 
-  root.updateMatrixWorld(true);
-
   root.traverse((child) => {
-    if (!(child as THREE.SkinnedMesh).isSkinnedMesh) return;
-    const mesh = child as THREE.SkinnedMesh;
-    const pos = mesh.geometry.attributes.position;
+    const isSkinned = (child as THREE.SkinnedMesh).isSkinnedMesh;
+    const isMesh = (child as THREE.Mesh).isMesh;
 
-    // Update skeleton so bone matrices are current
-    mesh.skeleton.update();
+    if (!isSkinned && !isMesh) return;
 
-    // Sample vertices (every Nth for performance; still accurate for min Y)
+    const mesh = child as THREE.Mesh;
+    const pos = mesh.geometry?.attributes?.position;
+    if (!pos) return;
+
+    if (isSkinned) {
+      const sm = child as THREE.SkinnedMesh;
+      try {
+        sm.skeleton.update();
+      } catch {
+        // Some skeletons may fail to update
+      }
+    }
+
+    // Sample every Nth vertex for performance
     const step = Math.max(1, Math.floor(pos.count / 500));
     for (let i = 0; i < pos.count; i += step) {
       v.fromBufferAttribute(pos, i);
-      mesh.boneTransform(i, v);
-      // Transform from mesh-local to world space (includes parent scale)
+
+      if (isSkinned) {
+        try {
+          (child as THREE.SkinnedMesh).boneTransform(i, v);
+        } catch {
+          // Fall through with raw position if boneTransform fails
+        }
+      }
+
       v.applyMatrix4(mesh.matrixWorld);
       if (v.y < minY) minY = v.y;
     }
   });
 
+  console.log(`[getSkinnedMinY] computed minY=${minY === Infinity ? 'none' : minY.toFixed(4)}`);
   return minY === Infinity ? 0 : minY;
 }
