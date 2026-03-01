@@ -14,7 +14,7 @@ export type RunnerWorldTheme = {
 
 export const URBAN_THEME: RunnerWorldTheme = {
   name: 'Urban',
-  ground: { color: '#3a3a3a', emissive: '#1a1a1a' },
+  ground: { color: '#505050', emissive: '#252525' },
   buildings: {
     colors: ['#8b7355', '#a0522d', '#696969', '#556b2f', '#4a4a6a', '#705040'],
     emissive: '#0a0a0a',
@@ -24,7 +24,7 @@ export const URBAN_THEME: RunnerWorldTheme = {
   sky: { color: '#87ceeb' },
   fog: { color: '#c8d8e8', near: 30, far: 100 },
   lighting: {
-    ambient: 0.4,
-    directional: { color: '#ffffff', intensity: 0.8 },
+    ambient: 0.7,
+    directional: { color: '#ffffff', intensity: 1.2 },
   },
 };

@@ -16,6 +16,7 @@ export function RunnerEnvironment() {
       <Rails theme={theme} />
       <Buildings theme={theme} />
       <ambientLight intensity={theme.lighting.ambient} />
+      <hemisphereLight args={['#b0d0ff', '#303030', 0.4]} />
       <directionalLight
         position={[5, 10, 5]}
         intensity={theme.lighting.directional.intensity}
