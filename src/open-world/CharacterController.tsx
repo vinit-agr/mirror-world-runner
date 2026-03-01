@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { useWorldStore } from './worldStore';
 import type { CharacterEntry } from './worldStore';
+import { getSkinnedMinY } from '../utils/skinnedBounds';
 
 const MODEL_SCALE = 0.01;
 const MOVE_SPEED = 6;
@@ -73,10 +74,6 @@ export function CharacterController() {
       }
     });
 
-    // Offset model so feet sit at y=0 regardless of character dimensions
-    const box = new THREE.Box3().setFromObject(fbx);
-    fbx.position.y = -box.min.y;
-
     groupRef.current.add(fbx);
     modelRef.current = fbx;
     loadedCharFile.current = charFile;
@@ -129,6 +126,12 @@ export function CharacterController() {
       actions['Idle'].reset().fadeIn(0.3).play();
       prevAction.current = 'Idle';
     }
+
+    // Compute ground offset using actual skinned vertex positions
+    // (Box3.setFromObject doesn't apply bone transforms for SkinnedMesh)
+    mixer.update(0);
+    const minY = getSkinnedMinY(fbx);
+    fbx.position.y = -minY;
 
     // Listen for one-shot animation finish
     mixer.addEventListener('finished', (e: { action: THREE.AnimationAction }) => {

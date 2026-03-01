@@ -3,6 +3,7 @@
     { "name": "Default", "file": "default.fbx" },
     { "name": "Amy", "file": "Amy.fbx" },
     { "name": "Maria J J Ong", "file": "Maria J J Ong.fbx" },
-    { "name": "Maria WProp J J Ong", "file": "Maria WProp J J Ong.fbx" }
+    { "name": "Maria WProp J J Ong", "file": "Maria WProp J J Ong.fbx" },
+    { "name": "AJ", "file": "Aj.fbx" }
   ]
 }
