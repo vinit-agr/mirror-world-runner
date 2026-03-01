@@ -27,6 +27,12 @@ const experiments: ExperimentCard[] = [
     route: 'mirror-world-runner',
     color: '#602040',
   },
+  {
+    title: 'Runner World',
+    description: 'Subway Surfer-style endless runner with FBX characters',
+    route: 'runner-world',
+    color: '#604020',
+  },
 ];
 
 export function Home() {

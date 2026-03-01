@@ -1,0 +1,108 @@
+import { useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { useRunnerStore, type ObstacleVariant } from '../core/RunnerState';
+import { RUNNER } from '../config/RunnerConfig';
+
+const VARIANTS: ObstacleVariant[] = ['barrier', 'tall', 'low'];
+
+export function useRunnerObstacleSystem() {
+  const spawnTimer = useRef(0);
+
+  useFrame((_, delta) => {
+    const state = useRunnerStore.getState();
+    const { speed, isBlocked } = state;
+
+    // Only accumulate distance when not blocked
+    const effectiveSpeed = isBlocked ? 0 : speed;
+    state.setDistance(state.distance + effectiveSpeed * delta);
+
+    // Spawn logic — fixed interval (skip spawning when blocked)
+    if (!isBlocked) spawnTimer.current += delta;
+    if (spawnTimer.current >= RUNNER.obstacleSpawnInterval) {
+      spawnTimer.current = 0;
+
+      const lane = Math.floor(Math.random() * RUNNER.laneCount);
+      const variant = VARIANTS[Math.floor(Math.random() * VARIANTS.length)];
+
+      state.spawnObstacle({
+        lane,
+        z: RUNNER.obstacleStartZ,
+        variant,
+        active: true,
+      });
+    }
+
+    // Move + despawn obstacles in a single batched update
+    const obstacles = useRunnerStore.getState().obstacles;
+    let needsPrune = false;
+    const updated = obstacles.map((obs) => {
+      if (!obs.active) return obs;
+      const newZ = obs.z + effectiveSpeed * delta;
+      if (newZ > RUNNER.obstacleDespawnZ) {
+        needsPrune = true;
+        return { ...obs, active: false };
+      }
+      return { ...obs, z: newZ };
+    });
+    // Prune inactive obstacles periodically
+    const final = needsPrune && updated.length > RUNNER.obstaclePoolSize * 2
+      ? updated.filter((o) => o.active)
+      : updated;
+    useRunnerStore.setState({ obstacles: final });
+  });
+}
+
+/** Get the half-extents for an obstacle variant. */
+export function getObstacleHalfExtents(variant: ObstacleVariant): [number, number, number] {
+  const dims = variant === 'barrier' ? RUNNER.obstacleBarrier
+    : variant === 'low' ? RUNNER.obstacleLow
+    : RUNNER.obstacleTall;
+  return [dims[0] / 2, dims[1] / 2, dims[2] / 2];
+}
+
+/**
+ * Check all active obstacles for collision with the player.
+ * Returns { count, ids } — count for debug display, ids for visual feedback.
+ */
+export function checkRunnerCollision(
+  playerLane: number,
+  playerY: number,
+  isSliding: boolean,
+): { count: number; ids: Set<number> } {
+  const obstacles = useRunnerStore.getState().obstacles;
+  const px = RUNNER.lanePositions[playerLane];
+  const [hx, hy, hz] = RUNNER.playerHitboxHalf;
+  const effectiveHy = isSliding ? RUNNER.playerSlideHitboxHalfY : hy;
+
+  const ids = new Set<number>();
+
+  for (const obs of obstacles) {
+    if (!obs.active) continue;
+
+    const ox = RUNNER.lanePositions[obs.lane];
+    const [ohx, ohy, ohz] = getObstacleHalfExtents(obs.variant);
+
+    // Obstacle Y center is at half its height (sitting on ground)
+    const obstacleY = ohy;
+
+    // Player bounds
+    const pBottom = playerY - effectiveHy;
+    const pTop = playerY + effectiveHy;
+
+    // Obstacle bounds
+    const oBottom = obstacleY - ohy;
+    const oTop = obstacleY + ohy;
+
+    // AABB overlap
+    if (
+      Math.abs(px - ox) < hx + ohx &&
+      Math.abs(obs.z) < hz + ohz &&
+      pTop > oBottom &&
+      pBottom < oTop
+    ) {
+      ids.add(obs.id);
+    }
+  }
+
+  return { count: ids.size, ids };
+}
