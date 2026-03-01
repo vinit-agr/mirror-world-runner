@@ -93,30 +93,29 @@ export function ControlsHUD() {
               {loadError}
             </div>
           )}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+          <select
+            value={selectedCharacter}
+            onChange={(e) => useCharacterStore.getState().setSelectedCharacter(e.target.value)}
+            style={{
+              width: '100%',
+              fontFamily: 'monospace',
+              fontSize: '0.8rem',
+              background: '#2a2a3e',
+              color: '#ccc',
+              border: '1px solid #444',
+              borderRadius: 4,
+              padding: '4px 8px',
+              cursor: 'pointer',
+            }}
+          >
             {availableCharacters.map((c) => (
-              <button
-                key={c.file}
-                onClick={() => useCharacterStore.getState().setSelectedCharacter(c.file)}
-                style={{
-                  padding: '4px 10px',
-                  fontFamily: 'monospace',
-                  fontSize: '0.8rem',
-                  background: c.file === selectedCharacter ? '#4040a0' : '#2a2a3e',
-                  color: c.file === selectedCharacter ? '#fff' : '#ccc',
-                  border: c.file === selectedCharacter ? '1px solid #6060c0' : '1px solid #444',
-                  borderRadius: 4,
-                  cursor: 'pointer',
-                }}
-              >
-                {c.name}
-              </button>
+              <option key={c.file} value={c.file}>{c.name}</option>
             ))}
-          </div>
+          </select>
         </div>
       )}
 
-      {/* Instructions for adding animations */}
+      {/* Instructions */}
       <div style={{
         marginTop: 10,
         borderTop: '1px solid #444',
@@ -124,9 +123,8 @@ export function ControlsHUD() {
         color: '#888',
         fontSize: '0.7rem',
       }}>
-        To add animations: drop FBX into<br />
-        <span style={{ color: '#aaa' }}>public/models/anims/</span> and add<br />
-        entry to <span style={{ color: '#aaa' }}>manifest.json</span>, then refresh.
+        Drop FBX files into <span style={{ color: '#aaa' }}>public/models/characters/</span> or{' '}
+        <span style={{ color: '#aaa' }}>public/models/anims/</span> and refresh.
       </div>
     </div>
   );

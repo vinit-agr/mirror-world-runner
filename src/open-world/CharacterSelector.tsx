@@ -18,13 +18,26 @@ export function CharacterSelector() {
       background: 'rgba(0,0,0,0.5)',
       padding: '10px 14px',
       borderRadius: 8,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 6,
-      maxHeight: '80vh',
-      overflowY: 'auto',
     }}>
-      <div style={{ fontWeight: 'bold', marginBottom: 2 }}>Character</div>
+      <label style={{ fontWeight: 'bold', marginRight: 8 }}>Character</label>
+      <select
+        value={selected}
+        onChange={(e) => useWorldStore.getState().setSelectedCharacter(e.target.value)}
+        style={{
+          fontFamily: 'monospace',
+          fontSize: '0.8rem',
+          background: '#1a1a2e',
+          color: '#fff',
+          border: '1px solid rgba(255,255,255,0.3)',
+          borderRadius: 4,
+          padding: '4px 8px',
+          cursor: 'pointer',
+        }}
+      >
+        {characters.map((c) => (
+          <option key={c.file} value={c.file}>{c.name}</option>
+        ))}
+      </select>
       {error && (
         <div style={{
           background: 'rgba(255,60,60,0.25)',
@@ -34,29 +47,11 @@ export function CharacterSelector() {
           borderRadius: 4,
           fontSize: '0.7rem',
           lineHeight: 1.3,
+          marginTop: 6,
         }}>
           {error}
         </div>
       )}
-      {characters.map((c) => (
-        <button
-          key={c.file}
-          onClick={() => useWorldStore.getState().setSelectedCharacter(c.file)}
-          style={{
-            background: selected === c.file ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)',
-            border: selected === c.file ? '1px solid rgba(255,255,255,0.5)' : '1px solid rgba(255,255,255,0.15)',
-            color: '#fff',
-            padding: '5px 10px',
-            borderRadius: 4,
-            cursor: 'pointer',
-            fontFamily: 'monospace',
-            fontSize: '0.75rem',
-            textAlign: 'left',
-          }}
-        >
-          {c.name}
-        </button>
-      ))}
     </div>
   );
 }
