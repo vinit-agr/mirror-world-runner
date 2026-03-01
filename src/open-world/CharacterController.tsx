@@ -73,6 +73,10 @@ export function CharacterController() {
       }
     });
 
+    // Offset model so feet sit at y=0 regardless of character dimensions
+    const box = new THREE.Box3().setFromObject(fbx);
+    fbx.position.y = -box.min.y;
+
     groupRef.current.add(fbx);
     modelRef.current = fbx;
     loadedCharFile.current = charFile;

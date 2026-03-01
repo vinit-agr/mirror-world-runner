@@ -10,7 +10,7 @@ export function CharacterSelector() {
     <div style={{
       position: 'absolute',
       top: 16,
-      right: 16,
+      left: 16,
       fontFamily: 'monospace',
       fontSize: '0.8rem',
       color: '#fff',
