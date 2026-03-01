@@ -29,10 +29,10 @@ export const RUNNER = {
 
   // World tiles
   tileLength: 4,
-  tileCount: 28,
+  tileCount: 40,
 
   // Buildings
-  buildingCount: 16,         // per side
+  buildingCount: 30,         // per side
   buildingMinHeight: 3,
   buildingMaxHeight: 8,
   buildingWidth: 2.5,

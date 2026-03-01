@@ -8,6 +8,7 @@ export function RunnerHUD() {
   const error = useRunnerStore((s) => s.characterError);
   const showHitboxes = useRunnerStore((s) => s.showHitboxes);
   const collisionCount = useRunnerStore((s) => s.collisionCount);
+  const isBlocked = useRunnerStore((s) => s.isBlocked);
   const [characters, setCharacters] = useState<CharacterEntry[]>([]);
 
   useEffect(() => {
@@ -83,6 +84,7 @@ export function RunnerHUD() {
       }}>
         <div>Hitboxes: {showHitboxes ? 'ON' : 'OFF'} <span style={{ color: '#666' }}>(H to toggle)</span></div>
         <div>Collisions: <span style={{ color: collisionCount > 0 ? '#ff4444' : '#44ff44' }}>{collisionCount}</span></div>
+        {isBlocked && <div style={{ color: '#ff4444', fontWeight: 'bold' }}>BLOCKED — switch lanes!</div>}
         <div style={{ color: '#666', marginTop: 4 }}>
           Arrow keys / WASD: move, jump, slide
         </div>

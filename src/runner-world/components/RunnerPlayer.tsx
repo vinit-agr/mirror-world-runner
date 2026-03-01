@@ -277,12 +277,20 @@ export function RunnerPlayer() {
     }
 
     // Collision check
-    const collisions = checkRunnerCollision(state.lane, playerY.current, state.isSliding);
+    const { count: collisions, ids: collidingIds } = checkRunnerCollision(state.lane, playerY.current, state.isSliding);
     if (collisions > 0 && state.collisionCount === 0) {
       console.log(`[RunnerWorld] Collision detected! (${collisions} overlaps)`);
     }
     if (collisions !== state.collisionCount) {
       state.setCollisionCount(collisions);
+      state.setCollidingObstacleIds(collidingIds);
+    }
+
+    // Block world on collision, unblock when clear
+    if (collisions > 0 && !state.isBlocked) {
+      state.setBlocked(true);
+    } else if (collisions === 0 && state.isBlocked) {
+      state.setBlocked(false);
     }
 
     mixerRef.current.update(delta);

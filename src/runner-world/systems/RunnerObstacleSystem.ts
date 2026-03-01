@@ -10,13 +10,14 @@ export function useRunnerObstacleSystem() {
 
   useFrame((_, delta) => {
     const state = useRunnerStore.getState();
-    const { speed } = state;
+    const { speed, isBlocked } = state;
 
-    // Accumulate distance
-    state.setDistance(state.distance + speed * delta);
+    // Only accumulate distance when not blocked
+    const effectiveSpeed = isBlocked ? 0 : speed;
+    state.setDistance(state.distance + effectiveSpeed * delta);
 
-    // Spawn logic — fixed interval
-    spawnTimer.current += delta;
+    // Spawn logic — fixed interval (skip spawning when blocked)
+    if (!isBlocked) spawnTimer.current += delta;
     if (spawnTimer.current >= RUNNER.obstacleSpawnInterval) {
       spawnTimer.current = 0;
 
@@ -36,7 +37,7 @@ export function useRunnerObstacleSystem() {
     let needsPrune = false;
     const updated = obstacles.map((obs) => {
       if (!obs.active) return obs;
-      const newZ = obs.z + speed * delta;
+      const newZ = obs.z + effectiveSpeed * delta;
       if (newZ > RUNNER.obstacleDespawnZ) {
         needsPrune = true;
         return { ...obs, active: false };
@@ -61,19 +62,19 @@ export function getObstacleHalfExtents(variant: ObstacleVariant): [number, numbe
 
 /**
  * Check all active obstacles for collision with the player.
- * Returns the number of collisions detected (for debug display).
+ * Returns { count, ids } — count for debug display, ids for visual feedback.
  */
 export function checkRunnerCollision(
   playerLane: number,
   playerY: number,
   isSliding: boolean,
-): number {
+): { count: number; ids: Set<number> } {
   const obstacles = useRunnerStore.getState().obstacles;
   const px = RUNNER.lanePositions[playerLane];
   const [hx, hy, hz] = RUNNER.playerHitboxHalf;
   const effectiveHy = isSliding ? RUNNER.playerSlideHitboxHalfY : hy;
 
-  let collisions = 0;
+  const ids = new Set<number>();
 
   for (const obs of obstacles) {
     if (!obs.active) continue;
@@ -99,9 +100,9 @@ export function checkRunnerCollision(
       pTop > oBottom &&
       pBottom < oTop
     ) {
-      collisions++;
+      ids.add(obs.id);
     }
   }
 
-  return collisions;
+  return { count: ids.size, ids };
 }

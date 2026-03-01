@@ -27,6 +27,10 @@ type RunnerState = {
   selectedCharacter: string;
   characterError: string | null;
 
+  // Collision blocking
+  isBlocked: boolean;
+  collidingObstacleIds: Set<number>;
+
   // Debug
   showHitboxes: boolean;
 
@@ -41,6 +45,8 @@ type RunnerState = {
   setDistance: (d: number) => void;
   setSelectedCharacter: (file: string) => void;
   setCharacterError: (err: string | null) => void;
+  setBlocked: (v: boolean) => void;
+  setCollidingObstacleIds: (ids: Set<number>) => void;
   toggleHitboxes: () => void;
   setCollisionCount: (n: number) => void;
   spawnObstacle: (obs: Omit<RunnerObstacle, 'id'>) => void;
@@ -61,6 +67,9 @@ export const useRunnerStore = create<RunnerState>((set, get) => ({
   selectedCharacter: 'default.fbx',
   characterError: null,
 
+  isBlocked: false,
+  collidingObstacleIds: new Set<number>(),
+
   showHitboxes: true,
   collisionCount: 0,
 
@@ -71,6 +80,8 @@ export const useRunnerStore = create<RunnerState>((set, get) => ({
   setDistance: (d) => set({ distance: d }),
   setSelectedCharacter: (file) => set({ selectedCharacter: file, characterError: null }),
   setCharacterError: (err) => set({ characterError: err }),
+  setBlocked: (v) => set({ isBlocked: v }),
+  setCollidingObstacleIds: (ids) => set({ collidingObstacleIds: ids }),
   toggleHitboxes: () => set((s) => ({ showHitboxes: !s.showHitboxes })),
   setCollisionCount: (n) => set({ collisionCount: n }),
 

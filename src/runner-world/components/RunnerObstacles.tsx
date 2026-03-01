@@ -31,7 +31,7 @@ function ObstacleMesh({ obs }: { obs: RunnerObstacle }) {
   );
 }
 
-function DebugWireframe({ obs }: { obs: RunnerObstacle }) {
+function DebugWireframe({ obs, isColliding }: { obs: RunnerObstacle; isColliding: boolean }) {
   const [hx, hy, hz] = getObstacleHalfExtents(obs.variant);
   const x = RUNNER.lanePositions[obs.lane];
   const y = hy; // center Y
@@ -41,7 +41,7 @@ function DebugWireframe({ obs }: { obs: RunnerObstacle }) {
   return (
     <lineSegments position={[x, y, obs.z]}>
       <edgesGeometry args={[geometry]} />
-      <lineBasicMaterial color="#ff0000" />
+      <lineBasicMaterial color={isColliding ? '#ffffff' : '#ff0000'} linewidth={isColliding ? 3 : 1} />
     </lineSegments>
   );
 }
@@ -52,6 +52,7 @@ export function PlayerDebugWireframe({ playerXRef, playerYRef }: {
 }) {
   const showHitboxes = useRunnerStore((s) => s.showHitboxes);
   const isSliding = useRunnerStore((s) => s.isSliding);
+  const isBlocked = useRunnerStore((s) => s.isBlocked);
   const lineRef = useRef<THREE.LineSegments>(null!);
   const [hx, hy, hz] = RUNNER.playerHitboxHalf;
   const effectiveHy = isSliding ? RUNNER.playerSlideHitboxHalfY : hy;
@@ -71,7 +72,7 @@ export function PlayerDebugWireframe({ playerXRef, playerYRef }: {
   return (
     <lineSegments ref={lineRef} position={[0, 0.5, 0]}>
       <edgesGeometry args={[geometry]} />
-      <lineBasicMaterial color="#00ff00" />
+      <lineBasicMaterial color={isBlocked ? '#ff0000' : '#00ff00'} linewidth={isBlocked ? 3 : 1} />
     </lineSegments>
   );
 }
@@ -81,6 +82,7 @@ export function RunnerObstacles() {
 
   const obstacles = useRunnerStore((s) => s.obstacles);
   const showHitboxes = useRunnerStore((s) => s.showHitboxes);
+  const collidingIds = useRunnerStore((s) => s.collidingObstacleIds);
 
   return (
     <>
@@ -88,7 +90,7 @@ export function RunnerObstacles() {
         obs.active && (
           <group key={obs.id}>
             <ObstacleMesh obs={obs} />
-            {showHitboxes && <DebugWireframe obs={obs} />}
+            {showHitboxes && <DebugWireframe obs={obs} isColliding={collidingIds.has(obs.id)} />}
           </group>
         ),
       )}
