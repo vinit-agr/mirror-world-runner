@@ -71,7 +71,7 @@ export const useRunnerStore = create<RunnerState>((set, get) => ({
   isBlocked: false,
   collidingObstacleIds: new Set<number>(),
 
-  showHitboxes: true,
+  showHitboxes: false,
   collisionCount: 0,
 
   setLane: (lane) => set({ lane: Math.max(0, Math.min(2, lane)) }),
