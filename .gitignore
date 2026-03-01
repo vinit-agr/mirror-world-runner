@@ -18,6 +18,27 @@ dist-ssr
 .idea
 .DS_Store
 *.suo
+
+# Ignore all model assets by default (large binaries)
+public/models/**/*.fbx
+public/models/**/*.glb
+
+# Whitelist specific character models
+!public/models/characters/default.fbx
+!public/models/characters/Amy.fbx
+!public/models/characters/Maria J J Ong.fbx
+
+# Whitelist specific animation files
+!public/models/anims/Idle.fbx
+!public/models/anims/Jump.fbx
+!public/models/anims/Run.fbx
+!public/models/anims/Slide.fbx
+!public/models/anims/Walking.fbx
+
+# Whitelist obstacle models
+!public/models/obstacles/barrier.glb
+!public/models/obstacles/low.glb
+!public/models/obstacles/tall.glb
 *.ntvs*
 *.njsproj
 *.sln
